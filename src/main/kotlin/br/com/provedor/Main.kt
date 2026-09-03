@@ -1,0 +1,89 @@
+package br.com.provedor
+
+import br.com.provedor.banco.Conexao
+import br.com.provedor.banco.Migracao
+import br.com.provedor.dao.FuncionarioDao
+import br.com.provedor.dao.SetorDao
+import br.com.provedor.menu.MenuPrincipal
+import br.com.provedor.menu.Sessao
+import br.com.provedor.modelo.Funcionario
+import br.com.provedor.servico.Caixa
+import br.com.provedor.util.Empresa
+import br.com.provedor.util.Entrada
+import br.com.provedor.util.EntradaEncerradaException
+import br.com.provedor.util.Formato
+import br.com.provedor.util.Validacao
+import java.math.BigDecimal
+
+/**
+ * Sistema de gestao de um provedor de internet.
+ * Trabalho da disciplina - Kotlin + PostgreSQL, tudo via menu de console.
+ */
+fun main() {
+    println()
+    println(Formato.linha())
+    println("  ${Empresa.NOME}")
+    println("  Sistema de gestao - versao 1.0")
+    println(Formato.linha())
+
+    try {
+        print("\nConectando no banco... ")
+        Migracao.criarEstrutura()
+        Caixa.atualizarDoBanco()
+        println("ok.")
+
+        primeiroAcesso()
+        Sessao.identificar()
+        MenuPrincipal.exibir()
+
+    } catch (e: EntradaEncerradaException) {
+        println("\n\nEntrada encerrada, fechando o sistema.")
+    } catch (e: Exception) {
+        println("\n[ERRO] ${e.message}")
+        println("Confere se o PostgreSQL esta rodando e se os dados do banco.properties estao certos.")
+    } finally {
+        Conexao.fechar()
+    }
+}
+
+/**
+ * Na primeira execucao o banco esta vazio e nao tem ninguem pra logar,
+ * entao cadastro aqui o primeiro funcionario (o dono/administrador).
+ */
+private fun primeiroAcesso() {
+    val funcionarioDao = FuncionarioDao()
+    if (funcionarioDao.contar() > 0) return
+
+    val setorDao = SetorDao()
+    val setores = setorDao.listar()
+
+    Formato.titulo("Primeiro acesso")
+    println("  O banco esta vazio. Vamos cadastrar o primeiro funcionario,")
+    println("  que vai ser o responsavel pelas primeiras operacoes do caixa.")
+    println()
+
+    val nome = Entrada.texto(
+        "Nome completo: ", 120,
+        { Validacao.nomeValido(it) }, "Nome invalido."
+    )
+    val cpf = Entrada.texto(
+        "CPF: ", 18,
+        { Validacao.cpfValido(it) }, "CPF invalido."
+    ).let { Validacao.somenteDigitos(it) }
+
+    val email = Entrada.textoOpcional("E-mail", 120, { Validacao.emailValido(it) })
+    val cargo = Entrada.texto("Cargo: ", 60, { it.length >= 3 })
+    val salario = Entrada.decimal("Salario: ", BigDecimal("1.00"))
+
+    println("\n  Setores ja criados:")
+    setores.forEach { println("   [${it.id}] ${it.nome}") }
+    val setorId = Entrada.inteiro("Setor: ", 1)
+
+    val id = funcionarioDao.inserir(
+        Funcionario(
+            nome = nome, cpf = cpf, email = email, cargo = cargo,
+            salario = salario, setorId = setorId
+        )
+    )
+    println("\n  Cadastrado com o codigo $id. Agora da pra usar o sistema.")
+}
