@@ -62,7 +62,8 @@ class ProdutoDao {
     fun atualizar(produto: Produto): Boolean {
         val sql = """
             UPDATE produto
-               SET descricao = ?, unidade = ?, estoque_minimo = ?, preco_custo = ?, preco_venda = ?
+               SET descricao = ?, unidade = ?, estoque_minimo = ?, preco_custo = ?,
+                   preco_venda = ?, fornecedor_id = ?
              WHERE id = ?
         """.trimIndent()
         Conexao.get().prepareStatement(sql).use { ps ->
@@ -71,7 +72,8 @@ class ProdutoDao {
             ps.setInt(3, produto.estoqueMinimo)
             ps.setBigDecimal(4, produto.precoCusto)
             ps.setBigDecimal(5, produto.precoVenda)
-            ps.setInt(6, produto.id)
+            if (produto.fornecedorId == null) ps.setNull(6, Types.INTEGER) else ps.setInt(6, produto.fornecedorId)
+            ps.setInt(7, produto.id)
             return ps.executeUpdate() > 0
         }
     }

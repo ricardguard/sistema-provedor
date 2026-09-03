@@ -107,7 +107,7 @@ class ServicoOrdem(
                 )
             }
             ordem.copy(status = StatusOrdem.ENCERRADA, encerramento = agora)
-        }
+        }.also { Caixa.sincronizar() }
     }
 
     /**
@@ -122,7 +122,11 @@ class ServicoOrdem(
 
         return Transacao.executar {
             ordemDao.listarItens(ordem.id).forEach { item ->
-                produtoDao.movimentarEstoque(item.produtoId, item.quantidade)
+                if (!produtoDao.movimentarEstoque(item.produtoId, item.quantidade)) {
+                    throw RegraDeNegocioException(
+                        "Nao consegui devolver ${item.quantidade}x ${item.produtoDescricao} pro estoque."
+                    )
+                }
             }
             if (!ordemDao.cancelar(ordem.id)) {
                 throw RegraDeNegocioException("Nao consegui cancelar a OS.")

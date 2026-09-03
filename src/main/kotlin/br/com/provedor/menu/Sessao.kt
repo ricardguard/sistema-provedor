@@ -28,6 +28,8 @@ object Sessao {
             throw RegraDeNegocioException("Nao existe funcionario ativo pra operar o sistema.")
         }
 
+        val atual = operador
+
         Formato.titulo("Identificacao do operador")
         ativos.forEach { f ->
             println("  [${f.id}] ${Formato.encurtar(f.nome, 28)} ${Formato.encurtar(f.cargo, 20)} ${f.setorNome}")
@@ -35,7 +37,15 @@ object Sessao {
         println(Formato.linha())
 
         while (true) {
-            val id = Entrada.inteiro("Codigo do funcionario: ", 1)
+            // Se ja tem alguem logado, o 0 serve pra desistir da troca.
+            val rotulo = if (atual == null) "Codigo do funcionario: " else "Codigo do funcionario (0 cancela): "
+            val id = Entrada.inteiro(rotulo, if (atual == null) 1 else 0)
+
+            if (id == 0 && atual != null) {
+                println("\nSegue como ${atual.nome}.")
+                return
+            }
+
             val escolhido = ativos.firstOrNull { it.id == id }
             if (escolhido == null) {
                 println("  > Codigo nao esta na lista.")
@@ -64,10 +74,13 @@ fun protegido(acao: () -> Unit) {
     } catch (e: Exception) {
         println("\n  [!] Nao consegui concluir a operacao: ${e.message}")
     } finally {
+        // Pego Exception e nao so SQLException: se aqui escapasse alguma coisa,
+        // ela substituiria o erro original que acabou de ser tratado e o
+        // sistema cairia sem o operador entender o que aconteceu.
         try {
             Caixa.atualizarDoBanco()
-        } catch (e: SQLException) {
-            // se o banco caiu, o erro ja apareceu acima
+        } catch (e: Exception) {
+            println("  [!] Nao consegui reler o saldo do caixa: ${e.message}")
         }
     }
     Entrada.pausar()

@@ -1,28 +1,26 @@
 package br.com.provedor.servico
 
+import br.com.provedor.banco.Conexao
 import br.com.provedor.banco.Transacao
-import br.com.provedor.dao.CaixaDao
-import br.com.provedor.dao.MovimentacaoDao
 import br.com.provedor.modelo.Funcionario
 import br.com.provedor.modelo.Movimentacao
 import br.com.provedor.modelo.TipoMovimentacao
 import java.math.BigDecimal
 import java.sql.SQLException
+import java.sql.Statement
 import java.time.LocalDateTime
 
 /**
- * Caixa da empresa.
+ * Caixa da empresa - e aqui que mora o encapsulamento pedido no enunciado.
  *
- * Aqui esta o encapsulamento pedido no enunciado: o campo "saldo" e privado e
- * nao tem setter. Nenhuma outra classe consegue mexer no dinheiro direto - o
- * unico caminho e chamar registrarEntrada / registrarSaida, que validam o
- * valor, gravam a movimentacao e atualizam o saldo dentro da mesma transacao.
- * Se qualquer passo falhar, da rollback e nada fica gravado pela metade.
+ * O saldo e um campo privado sem setter, mas so isso nao bastaria: se
+ * existisse um DAO publico capaz de gravar na tabela caixa, qualquer classe
+ * mudaria o dinheiro sem gerar movimentacao. Por isso o SQL que mexe no saldo
+ * e o que grava o lancamento sao funcoes PRIVADAS deste objeto. Fora daqui so
+ * existem dois caminhos: registrarEntrada e registrarSaida, que validam tudo
+ * antes e gravam lancamento + saldo na mesma transacao.
  */
 object Caixa {
-
-    private val caixaDao = CaixaDao()
-    private val movimentacaoDao = MovimentacaoDao()
 
     private var saldo: BigDecimal = BigDecimal.ZERO
 
@@ -32,7 +30,17 @@ object Caixa {
 
     /** Busca no banco o saldo de verdade. Chamo na abertura e depois de cada operacao. */
     fun atualizarDoBanco() {
-        saldo = caixaDao.lerSaldo()
+        saldo = lerSaldo()
+    }
+
+    /**
+     * Rele o saldo, mas so quando nao tem transacao aberta. Se lesse no meio
+     * de uma transacao, o cache guardaria um valor que ainda pode sofrer
+     * rollback. Os servicos chamam isso logo depois de fechar a transacao
+     * deles, pra tela mostrar o saldo certo.
+     */
+    fun sincronizar() {
+        if (Conexao.get().autoCommit) atualizarDoBanco()
     }
 
     fun registrarEntrada(
@@ -85,7 +93,7 @@ object Caixa {
         try {
             val movimentacaoGravada = Transacao.executar {
                 // 2) trava a linha do caixa e le o saldo que esta valendo agora
-                val saldoNoBanco = caixaDao.lerSaldoParaAtualizar()
+                val saldoNoBanco = lerSaldoParaAtualizar()
 
                 val novoSaldo = if (tipo == TipoMovimentacao.ENTRADA) {
                     saldoNoBanco.add(valor)
@@ -113,16 +121,74 @@ object Caixa {
                 )
 
                 // 3) lancamento e saldo gravados juntos
-                val id = movimentacaoDao.inserir(movimentacao)
-                caixaDao.gravarSaldo(novoSaldo)
+                val id = gravarMovimentacao(movimentacao)
+                gravarSaldo(novoSaldo)
                 movimentacao.copy(id = id)
             }
 
-            atualizarDoBanco()
+            // So atualizo o saldo em memoria quando a transacao realmente fechou.
+            // Se este registrar foi chamado de dentro de um servico maior, a
+            // transacao ainda esta aberta e quem confirma o saldo e o servico.
+            sincronizar()
+
             return movimentacaoGravada
 
         } catch (e: SQLException) {
             throw RegraDeNegocioException("Erro do banco ao gravar a movimentacao: ${e.message}")
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Daqui pra baixo e tudo privado: e o unico ponto do sistema que
+    // escreve na tabela caixa e na movimentacao_financeira.
+    // ------------------------------------------------------------------
+
+    private fun lerSaldo(): BigDecimal {
+        Conexao.get().prepareStatement("SELECT saldo FROM caixa WHERE id = 1").use { ps ->
+            ps.executeQuery().use { rs ->
+                return if (rs.next()) rs.getBigDecimal("saldo") else BigDecimal.ZERO
+            }
+        }
+    }
+
+    /**
+     * O FOR UPDATE trava a linha do caixa ate o commit, senao duas operacoes
+     * poderiam ler o mesmo saldo e gravar valores errados.
+     */
+    private fun lerSaldoParaAtualizar(): BigDecimal {
+        Conexao.get().prepareStatement("SELECT saldo FROM caixa WHERE id = 1 FOR UPDATE").use { ps ->
+            ps.executeQuery().use { rs ->
+                if (!rs.next()) throw IllegalStateException("Registro do caixa nao encontrado.")
+                return rs.getBigDecimal("saldo")
+            }
+        }
+    }
+
+    private fun gravarSaldo(novoSaldo: BigDecimal) {
+        Conexao.get().prepareStatement("UPDATE caixa SET saldo = ?, atualizado_em = NOW() WHERE id = 1").use { ps ->
+            ps.setBigDecimal(1, novoSaldo)
+            ps.executeUpdate()
+        }
+    }
+
+    private fun gravarMovimentacao(mov: Movimentacao): Int {
+        val sql = """
+            INSERT INTO movimentacao_financeira
+                (tipo, categoria, valor, pagador, recebedor, data_hora, descricao, responsavel_id, saldo_apos)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """.trimIndent()
+        Conexao.get().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS).use { ps ->
+            ps.setString(1, mov.tipo.name)
+            ps.setString(2, mov.categoria)
+            ps.setBigDecimal(3, mov.valor)
+            ps.setString(4, mov.pagador)
+            ps.setString(5, mov.recebedor)
+            ps.setTimestamp(6, java.sql.Timestamp.valueOf(mov.dataHora))
+            ps.setString(7, mov.descricao)
+            ps.setInt(8, mov.responsavelId)
+            ps.setBigDecimal(9, mov.saldoApos)
+            ps.executeUpdate()
+            ps.generatedKeys.use { rs -> return if (rs.next()) rs.getInt(1) else 0 }
         }
     }
 }

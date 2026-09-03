@@ -56,6 +56,14 @@ private fun primeiroAcesso() {
 
     val setorDao = SetorDao()
     val setores = setorDao.listar()
+    if (setores.isEmpty()) {
+        // O schema.sql ja cria quatro setores. Se chegou aqui vazio e porque
+        // alguem apagou tudo direto no banco - melhor avisar do que ficar
+        // pedindo um codigo que nunca vai existir.
+        throw IllegalStateException(
+            "Nao ha nenhum setor cadastrado. Rode o schema.sql de novo ou insira um setor no banco."
+        )
+    }
 
     Formato.titulo("Primeiro acesso")
     println("  O banco esta vazio. Vamos cadastrar o primeiro funcionario,")
@@ -77,7 +85,15 @@ private fun primeiroAcesso() {
 
     println("\n  Setores ja criados:")
     setores.forEach { println("   [${it.id}] ${it.nome}") }
-    val setorId = Entrada.inteiro("Setor: ", 1)
+
+    // Fica pedindo ate vir um codigo que existe mesmo. Sem isso o INSERT
+    // quebrava na chave estrangeira e o sistema fechava no primeiro acesso.
+    var setorId: Int
+    while (true) {
+        setorId = Entrada.inteiro("Setor: ", 1)
+        if (setores.any { it.id == setorId }) break
+        println("  > Codigo nao esta na lista de setores.")
+    }
 
     val id = funcionarioDao.inserir(
         Funcionario(

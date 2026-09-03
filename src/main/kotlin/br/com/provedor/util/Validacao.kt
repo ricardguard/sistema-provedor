@@ -6,8 +6,12 @@ package br.com.provedor.util
  */
 object Validacao {
 
-    // Aceita nome com acento, espaco e apostrofo. Minimo de 3 letras.
-    private val REGEX_NOME = Regex("^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'´` ]{2,}$")
+    // Nome de pessoa: acento, espaco, apostrofo e hifen (Ana Lima-Souza). Minimo 3.
+    private val REGEX_NOME = Regex("^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'´`\\- ]{2,}$")
+
+    // Razao social aceita numero e os sinais que aparecem em nome de empresa:
+    // "Padaria 2 Irmaos", "J. Silva Comercio", "Costa & Filhos Ltda - ME"
+    private val REGEX_RAZAO_SOCIAL = Regex("^[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9'´`.,&/\\-_ ]{2,}$")
 
     // Formato basico de e-mail: alguma.coisa@dominio.algo
     private val REGEX_EMAIL = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
@@ -24,6 +28,15 @@ object Validacao {
     fun nomeValido(nome: String?): Boolean {
         val limpo = nome?.trim() ?: return false
         return limpo.length <= 120 && REGEX_NOME.matches(limpo)
+    }
+
+    /**
+     * Cliente e fornecedor podem ser pessoa fisica ou juridica, entao aqui a
+     * regra e mais larga que a do nome de funcionario.
+     */
+    fun razaoSocialValida(nome: String?): Boolean {
+        val limpo = nome?.trim() ?: return false
+        return limpo.length <= 120 && REGEX_RAZAO_SOCIAL.matches(limpo)
     }
 
     /** E-mail e opcional no cadastro, entao nulo/vazio passa. Se preencheu, tem que estar certo. */

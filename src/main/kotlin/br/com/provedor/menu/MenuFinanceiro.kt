@@ -90,9 +90,6 @@ object MenuFinanceiro {
         val total = equipe.fold(BigDecimal.ZERO) { soma, f -> soma.add(f.salario) }
         println("\n  ${equipe.size} funcionario(s), total de ${Formato.moeda(total)}.")
         println("  Saldo em caixa: ${Formato.moeda(Caixa.saldoAtual)}")
-        if (total > Caixa.saldoAtual) {
-            throw RegraDeNegocioException("O caixa nao cobre a folha inteira desse setor.")
-        }
 
         val competencia = Entrada.texto(
             "Competencia (MM/AAAA): ", 7,
@@ -100,13 +97,10 @@ object MenuFinanceiro {
         )
         if (!Entrada.confirmar("Confirma o pagamento da folha do setor?")) return
 
-        // pago um por um: cada salario vira uma movimentacao propria no caixa
-        var pagos = 0
-        equipe.forEach { funcionario ->
-            servicoFinanceiro.pagarSalario(funcionario.id, competencia, Sessao.logado)
-            pagos++
-        }
-        println("\n  $pagos salario(s) pagos. Saldo em caixa: ${Formato.moeda(Caixa.saldoAtual)}")
+        // O servico paga a folha inteira numa transacao so: cada salario vira
+        // uma movimentacao propria, mas ou entram todas ou nao entra nenhuma.
+        val lancamentos = servicoFinanceiro.pagarFolhaDoSetor(setorId, competencia, Sessao.logado)
+        println("\n  ${lancamentos.size} salario(s) pagos. Saldo em caixa: ${Formato.moeda(Caixa.saldoAtual)}")
     }
 
     private fun pagarDespesa() {

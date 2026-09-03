@@ -12,7 +12,7 @@ class ContratoDao {
 
     private val selectBase = """
         SELECT c.id, c.cliente_id, cl.nome AS cliente_nome, c.plano_id, p.nome AS plano_nome,
-               p.valor_mensal, c.vendedor_id, c.data_inicio, c.dia_vencimento,
+               c.valor_mensal, c.vendedor_id, c.data_inicio, c.dia_vencimento,
                c.status, c.data_cancelamento
           FROM contrato c
           JOIN cliente cl ON cl.id = c.cliente_id
@@ -21,15 +21,17 @@ class ContratoDao {
 
     fun inserir(contrato: Contrato): Int {
         val sql = """
-            INSERT INTO contrato (cliente_id, plano_id, vendedor_id, data_inicio, dia_vencimento, status)
-            VALUES (?, ?, ?, ?, ?, 'ATIVO')
+            INSERT INTO contrato (cliente_id, plano_id, vendedor_id, valor_mensal,
+                                  data_inicio, dia_vencimento, status)
+            VALUES (?, ?, ?, ?, ?, ?, 'ATIVO')
         """.trimIndent()
         Conexao.get().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS).use { ps ->
             ps.setInt(1, contrato.clienteId)
             ps.setInt(2, contrato.planoId)
             if (contrato.vendedorId == null) ps.setNull(3, Types.INTEGER) else ps.setInt(3, contrato.vendedorId)
-            ps.setDate(4, java.sql.Date.valueOf(contrato.dataInicio))
-            ps.setInt(5, contrato.diaVencimento)
+            ps.setBigDecimal(4, contrato.valorMensal)
+            ps.setDate(5, java.sql.Date.valueOf(contrato.dataInicio))
+            ps.setInt(6, contrato.diaVencimento)
             ps.executeUpdate()
             ps.generatedKeys.use { rs -> return if (rs.next()) rs.getInt(1) else 0 }
         }

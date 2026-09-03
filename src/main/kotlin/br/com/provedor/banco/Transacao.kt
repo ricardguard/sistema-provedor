@@ -23,6 +23,7 @@ object Transacao {
         }
 
         conexao.autoCommit = false
+        Conexao.transacaoAberta = true
         try {
             val resultado = bloco()
             conexao.commit()
@@ -35,7 +36,12 @@ object Transacao {
             }
             throw e
         } finally {
-            conexao.autoCommit = true
+            Conexao.transacaoAberta = false
+            try {
+                conexao.autoCommit = true
+            } catch (e: SQLException) {
+                // conexao ja morreu; a proxima chamada abre outra
+            }
         }
     }
 }

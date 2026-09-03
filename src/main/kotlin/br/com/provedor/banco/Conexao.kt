@@ -14,9 +14,23 @@ object Conexao {
 
     private var conexao: Connection? = null
 
+    /** Ligado pelo Transacao enquanto tem transacao aberta. */
+    internal var transacaoAberta: Boolean = false
+
     fun get(): Connection {
         val atual = conexao
         if (atual != null && !atual.isClosed) return atual
+
+        // Se a conexao caiu com transacao aberta, reconectar seria pior que
+        // falhar: os comandos seguintes iriam num autocommit novo e o rollback
+        // no fim nao desfaria nada. Melhor abortar a operacao inteira.
+        if (transacaoAberta) {
+            transacaoAberta = false
+            conexao = null
+            throw IllegalStateException(
+                "A conexao com o banco caiu no meio de uma operacao. Nada foi gravado, refaca o lancamento."
+            )
+        }
 
         val config = carregarConfiguracao()
         try {

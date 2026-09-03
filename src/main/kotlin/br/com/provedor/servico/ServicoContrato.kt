@@ -4,6 +4,7 @@ import br.com.provedor.banco.Transacao
 import br.com.provedor.dao.ClienteDao
 import br.com.provedor.dao.ContratoDao
 import br.com.provedor.dao.FaturaDao
+import br.com.provedor.dao.FuncionarioDao
 import br.com.provedor.dao.OrdemServicoDao
 import br.com.provedor.dao.PlanoDao
 import br.com.provedor.modelo.Contrato
@@ -27,6 +28,7 @@ class ServicoContrato(
     private val faturaDao: FaturaDao = FaturaDao(),
     private val planoDao: PlanoDao = PlanoDao(),
     private val clienteDao: ClienteDao = ClienteDao(),
+    private val funcionarioDao: FuncionarioDao = FuncionarioDao(),
     private val ordemDao: OrdemServicoDao = OrdemServicoDao()
 ) {
 
@@ -56,6 +58,14 @@ class ServicoContrato(
             throw RegraDeNegocioException("O dia de vencimento tem que ser entre 1 e 28.")
         }
 
+        // Sem essa checagem o codigo errado ia direto pro banco e o operador
+        // levava um erro cru de chave estrangeira na tela.
+        if (vendedorId != null) {
+            val vendedor = funcionarioDao.buscarPorId(vendedorId)
+                ?: throw RegraDeNegocioException("Vendedor nao encontrado.")
+            if (!vendedor.ativo) throw RegraDeNegocioException("Esse vendedor esta desligado.")
+        }
+
         val jaTemAtivo = contratoDao.listarPorCliente(clienteId)
             .any { it.status == StatusContrato.ATIVO && it.planoId == planoId }
         if (jaTemAtivo) {
@@ -67,6 +77,8 @@ class ServicoContrato(
                 clienteId = cliente.id,
                 planoId = plano.id,
                 vendedorId = vendedorId,
+                // congela o preco do dia da assinatura no proprio contrato
+                valorMensal = plano.valorMensal,
                 dataInicio = LocalDate.now(),
                 diaVencimento = diaVencimento
             )
@@ -98,7 +110,7 @@ class ServicoContrato(
                 planoNome = plano.nome,
                 valorMensal = plano.valorMensal
             )
-        }
+        }.also { Caixa.sincronizar() }
     }
 
     /**
@@ -151,7 +163,7 @@ class ServicoContrato(
                 responsavel = responsavel
             )
             fatura.copy(status = StatusFatura.PAGA, dataPagamento = agora)
-        }
+        }.also { Caixa.sincronizar() }
     }
 
     /** Cancela o contrato e as faturas que ainda estavam em aberto. */
@@ -163,7 +175,9 @@ class ServicoContrato(
         }
 
         return Transacao.executar {
-            contratoDao.alterarStatus(contrato.id, StatusContrato.CANCELADO, LocalDate.now())
+            if (!contratoDao.alterarStatus(contrato.id, StatusContrato.CANCELADO, LocalDate.now())) {
+                throw RegraDeNegocioException("Nao consegui cancelar o contrato ${contrato.id}.")
+            }
             faturaDao.listarPorContrato(contrato.id)
                 .filter { it.status == StatusFatura.ABERTA }
                 .forEach { faturaDao.cancelar(it.id) }
@@ -188,7 +202,9 @@ class ServicoContrato(
         if (contrato.status == StatusContrato.CANCELADO) {
             throw RegraDeNegocioException("Contrato cancelado nao volta atras, faca um novo.")
         }
-        contratoDao.alterarStatus(contrato.id, novoStatus)
+        if (!contratoDao.alterarStatus(contrato.id, novoStatus)) {
+            throw RegraDeNegocioException("Nao consegui mudar a situacao do contrato ${contrato.id}.")
+        }
         return contrato.copy(status = novoStatus)
     }
 }

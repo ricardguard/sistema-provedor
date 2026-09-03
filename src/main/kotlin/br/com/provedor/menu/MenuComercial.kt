@@ -109,18 +109,23 @@ object MenuComercial {
         if (id == 0) return
         val plano = planoDao.buscarPorId(id) ?: throw RegraDeNegocioException("Plano nao encontrado.")
 
-        val nome = Entrada.texto("Nome [${plano.nome}]: ", 60, { it.length >= 3 })
-        val velocidade = Entrada.inteiro("Velocidade [${plano.velocidadeMega}]: ", 1, 10000)
-        val mensalidade = Entrada.decimal("Mensalidade [${Formato.moeda(plano.valorMensal)}]: ", BigDecimal("1.00"))
-        val instalacao = Entrada.decimal("Taxa de instalacao [${Formato.moeda(plano.taxaInstalacao)}]: ")
+        val nome = Entrada.texto("Nome", plano.nome, 60, { it.length >= 3 })
+        val velocidade = Entrada.inteiro("Velocidade em mega", plano.velocidadeMega, 1, 10000)
+        val mensalidade = Entrada.decimal("Mensalidade", plano.valorMensal, BigDecimal("1.00"))
+        val instalacao = Entrada.decimal("Taxa de instalacao", plano.taxaInstalacao)
 
-        planoDao.atualizar(
+        val ok = planoDao.atualizar(
             plano.copy(
                 nome = nome, velocidadeMega = velocidade,
                 valorMensal = mensalidade, taxaInstalacao = instalacao
             )
         )
-        println("\n  Plano atualizado. Contratos antigos seguem com o valor que estava no plano.")
+        if (!ok) {
+            println("\n  Nada foi alterado, confere o codigo do plano.")
+            return
+        }
+        println("\n  Plano atualizado. Os contratos ja assinados continuam no valor")
+        println("  que foi congelado neles - o preco novo vale so pras proximas vendas.")
     }
 
     private fun alterarSituacaoPlano() {

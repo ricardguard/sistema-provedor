@@ -1,5 +1,6 @@
 package br.com.provedor.menu
 
+import br.com.provedor.dao.ClienteDao
 import br.com.provedor.dao.CompraDao
 import br.com.provedor.dao.FornecedorDao
 import br.com.provedor.dao.ProdutoDao
@@ -16,6 +17,7 @@ object MenuEstoque {
 
     private val produtoDao = ProdutoDao()
     private val fornecedorDao = FornecedorDao()
+    private val clienteDao = ClienteDao()
     private val compraDao = CompraDao()
     private val servicoEstoque = ServicoEstoque()
 
@@ -26,20 +28,26 @@ object MenuEstoque {
             println("  2 - Cadastrar produto")
             println("  3 - Alterar produto")
             println("  4 - Comprar do fornecedor")
-            println("  5 - Produtos abaixo do minimo")
-            println("  6 - Ajuste de inventario")
-            println("  7 - Ultimas compras")
+            println("  5 - Vender produto pro cliente")
+            println("  6 - Produtos abaixo do minimo")
+            println("  7 - Ajuste de inventario")
+            println("  8 - Ultimas compras")
+            println("  9 - Ultimas vendas")
+            println(" 10 - Historico de ajustes")
             println("  0 - Voltar")
             println(Formato.linha())
 
-            when (Entrada.opcao(0, 7)) {
+            when (Entrada.opcao(0, 10)) {
                 1 -> protegido { listarProdutos(produtoDao.listar()) }
                 2 -> protegido { cadastrarProduto() }
                 3 -> protegido { alterarProduto() }
                 4 -> protegido { comprar() }
-                5 -> protegido { listarProdutos(produtoDao.listarAbaixoDoMinimo()) }
-                6 -> protegido { ajustarInventario() }
-                7 -> protegido { ultimasCompras() }
+                5 -> protegido { vender() }
+                6 -> protegido { listarProdutos(produtoDao.listarAbaixoDoMinimo()) }
+                7 -> protegido { ajustarInventario() }
+                8 -> protegido { ultimasCompras() }
+                9 -> protegido { ultimasVendas() }
+                10 -> protegido { historicoAjustes() }
                 0 -> return
             }
         }
@@ -99,19 +107,39 @@ object MenuEstoque {
         listarProdutos(produtoDao.listar())
         val produto = selecionarProduto() ?: return
 
-        val descricao = Entrada.texto("Descricao [${produto.descricao}]: ", 120, { it.length >= 3 })
-        val unidade = Entrada.texto("Unidade [${produto.unidade}]: ", 10, { it.length in 1..10 }).uppercase()
-        val minimo = Entrada.inteiro("Estoque minimo [${produto.estoqueMinimo}]: ", 0)
-        val custo = Entrada.decimal("Custo [${Formato.moeda(produto.precoCusto)}]: ")
-        val venda = Entrada.decimal("Venda [${Formato.moeda(produto.precoVenda)}]: ")
+        val descricao = Entrada.texto("Descricao", produto.descricao, 120, { it.length >= 3 })
+        val unidade = Entrada.texto("Unidade", produto.unidade, 10, { it.length in 1..10 }).uppercase()
+        val minimo = Entrada.inteiro("Estoque minimo", produto.estoqueMinimo, 0, Int.MAX_VALUE)
+        val custo = Entrada.decimal("Preco de custo", produto.precoCusto)
+        val venda = Entrada.decimal("Preco de venda", produto.precoVenda)
 
-        produtoDao.atualizar(
+        // Da pra trocar o fornecedor aqui: antes so dava pra definir no cadastro,
+        // entao produto criado antes do fornecedor ficava orfao pra sempre.
+        var fornecedorId = produto.fornecedorId
+        val fornecedores = fornecedorDao.listar(somenteAtivos = true)
+        if (fornecedores.isNotEmpty()) {
+            println("\n  Fornecedores:")
+            fornecedores.forEach { println("   [${it.id}] ${it.razaoSocial}") }
+            val atual = produto.fornecedorId?.toString() ?: "nenhum"
+            val escolha = Entrada.inteiro("Fornecedor [$atual] (0 = nenhum): ", 0)
+            fornecedorId = if (escolha == 0) {
+                null
+            } else {
+                fornecedorDao.buscarPorId(escolha) ?: throw RegraDeNegocioException("Fornecedor nao encontrado.")
+                escolha
+            }
+        }
+
+        val ok = produtoDao.atualizar(
             produto.copy(
                 descricao = descricao, unidade = unidade, estoqueMinimo = minimo,
-                precoCusto = custo, precoVenda = venda
+                precoCusto = custo, precoVenda = venda, fornecedorId = fornecedorId
             )
         )
-        println("\n  Produto atualizado. (a quantidade so muda por compra, OS ou inventario)")
+        println(
+            if (ok) "\n  Produto atualizado. (a quantidade so muda por compra, venda, OS ou inventario)"
+            else "\n  Nada foi alterado, confere o codigo do produto."
+        )
     }
 
     private fun comprar() {
@@ -145,6 +173,42 @@ object MenuEstoque {
         println("  Saldo em caixa agora: ${Formato.moeda(Caixa.saldoAtual)}")
     }
 
+    private fun vender() {
+        Formato.titulo("Venda de produto")
+
+        val clientes = clienteDao.listar(somenteAtivos = true)
+        if (clientes.isEmpty()) throw RegraDeNegocioException("Nao ha cliente ativo cadastrado.")
+        clientes.forEach { println("   [${it.id}] ${Formato.encurtar(it.nome, 30)} ${it.cidade ?: ""}") }
+        val clienteId = Entrada.inteiro("Codigo do cliente: ", 1)
+
+        val comSaldo = produtoDao.listar().filter { it.quantidadeEstoque > 0 }
+        if (comSaldo.isEmpty()) throw RegraDeNegocioException("Nao ha produto com saldo em estoque.")
+        listarProdutos(comSaldo)
+        val produto = selecionarProduto() ?: return
+        if (produto.quantidadeEstoque <= 0) throw RegraDeNegocioException("Esse produto esta sem estoque.")
+
+        val quantidade = Entrada.inteiro("Quantidade vendida: ", 1, produto.quantidadeEstoque)
+        println("  Preco de tabela: ${Formato.moeda(produto.precoVenda)}")
+        val valorUnitario = Entrada.decimal("Valor unitario da venda: ", BigDecimal("0.01"))
+        val total = valorUnitario.multiply(BigDecimal(quantidade))
+
+        if (valorUnitario < produto.precoCusto) {
+            println("  Atencao: esse valor esta abaixo do custo (${Formato.moeda(produto.precoCusto)}).")
+        }
+        println("\n  Total da venda: ${Formato.moeda(total)}")
+        if (!Entrada.confirmar("Confirma a venda e a entrada no caixa?")) return
+
+        val venda = servicoEstoque.venderParaCliente(
+            produto = produto,
+            clienteId = clienteId,
+            quantidade = quantidade,
+            valorUnitario = valorUnitario,
+            responsavel = Sessao.logado
+        )
+        println("\n  Venda ${venda.id} registrada pro cliente ${venda.clienteNome}.")
+        println("  Estoque baixado e caixa creditado. Saldo agora: ${Formato.moeda(Caixa.saldoAtual)}")
+    }
+
     private fun ajustarInventario() {
         listarProdutos(produtoDao.listar())
         val produto = selecionarProduto() ?: return
@@ -154,9 +218,42 @@ object MenuEstoque {
             println("\n  Contagem bateu com o sistema, nada a ajustar.")
             return
         }
+        val motivo = Entrada.texto("Motivo do ajuste: ", 250, { it.length >= 5 },
+            "Explica o motivo com pelo menos 5 caracteres.")
         if (Entrada.confirmar("Ajustar de ${produto.quantidadeEstoque} para $contado?")) {
-            servicoEstoque.ajustarInventario(produto, contado)
-            println("\n  Estoque ajustado.")
+            val ajuste = servicoEstoque.ajustarInventario(produto, contado, motivo, Sessao.logado)
+            val sinal = if (ajuste.diferenca > 0) "+" else ""
+            println("\n  Estoque ajustado ($sinal${ajuste.diferenca}) e registrado no historico.")
+        }
+    }
+
+    private fun ultimasVendas() {
+        val vendas = servicoEstoque.ultimasVendas()
+        Formato.titulo("Ultimas vendas")
+        if (vendas.isEmpty()) {
+            println("  Nenhuma venda registrada.")
+            return
+        }
+        vendas.forEach {
+            println(
+                "  [${it.id}] ${Formato.dataHora(it.dataVenda)} ${Formato.encurtar(it.produtoDescricao, 22)} " +
+                        "x${it.quantidade} - ${Formato.moeda(it.valorTotal)} - ${it.clienteNome}"
+            )
+        }
+    }
+
+    private fun historicoAjustes() {
+        val ajustes = servicoEstoque.ultimosAjustes()
+        Formato.titulo("Historico de ajustes de estoque")
+        if (ajustes.isEmpty()) {
+            println("  Nenhum ajuste registrado.")
+            return
+        }
+        ajustes.forEach {
+            val sinal = if (it.diferenca > 0) "+" else ""
+            println("  ${Formato.dataHora(it.dataAjuste)} ${Formato.encurtar(it.produtoDescricao, 22)} " +
+                    "${it.quantidadeAnterior} -> ${it.quantidadeNova} ($sinal${it.diferenca})")
+            println("     motivo: ${it.motivo} | responsavel: ${it.responsavelNome}")
         }
     }
 

@@ -5,7 +5,6 @@ import br.com.provedor.modelo.Movimentacao
 import br.com.provedor.modelo.TipoMovimentacao
 import java.math.BigDecimal
 import java.sql.ResultSet
-import java.sql.Statement
 import java.time.LocalDate
 
 class MovimentacaoDao {
@@ -17,26 +16,8 @@ class MovimentacaoDao {
           JOIN funcionario f ON f.id = m.responsavel_id
     """.trimIndent()
 
-    fun inserir(mov: Movimentacao): Int {
-        val sql = """
-            INSERT INTO movimentacao_financeira
-                (tipo, categoria, valor, pagador, recebedor, data_hora, descricao, responsavel_id, saldo_apos)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """.trimIndent()
-        Conexao.get().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS).use { ps ->
-            ps.setString(1, mov.tipo.name)
-            ps.setString(2, mov.categoria)
-            ps.setBigDecimal(3, mov.valor)
-            ps.setString(4, mov.pagador)
-            ps.setString(5, mov.recebedor)
-            ps.setTimestamp(6, java.sql.Timestamp.valueOf(mov.dataHora))
-            ps.setString(7, mov.descricao)
-            ps.setInt(8, mov.responsavelId)
-            ps.setBigDecimal(9, mov.saldoApos)
-            ps.executeUpdate()
-            ps.generatedKeys.use { rs -> return if (rs.next()) rs.getInt(1) else 0 }
-        }
-    }
+    // Este DAO so LE. Quem grava movimentacao e o objeto Caixa, que faz isso
+    // por funcao privada dele - assim nao existe caminho paralelo pro dinheiro.
 
     fun listarUltimas(limite: Int = 20): List<Movimentacao> {
         val lista = mutableListOf<Movimentacao>()

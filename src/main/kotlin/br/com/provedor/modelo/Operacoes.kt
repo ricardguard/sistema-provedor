@@ -45,6 +45,47 @@ data class Compra(
         get() = valorUnitario.multiply(BigDecimal(quantidade))
 }
 
+/** Venda de produto direto pro cliente (o contrario da compra). */
+data class Venda(
+    val id: Int = 0,
+    val clienteId: Int,
+    val clienteNome: String = "",
+    val produtoId: Int,
+    val produtoDescricao: String = "",
+    val quantidade: Int,
+    val valorUnitario: BigDecimal,
+    val responsavelId: Int,
+    val dataVenda: LocalDateTime = LocalDateTime.now()
+) {
+    val valorTotal: BigDecimal
+        get() = valorUnitario.multiply(BigDecimal(quantidade))
+}
+
+data class PagamentoSalario(
+    val id: Int = 0,
+    val funcionarioId: Int,
+    val funcionarioNome: String = "",
+    val competencia: String,
+    val valor: BigDecimal,
+    val responsavelId: Int,
+    val dataPagamento: LocalDateTime = LocalDateTime.now()
+)
+
+data class AjusteEstoque(
+    val id: Int = 0,
+    val produtoId: Int,
+    val produtoDescricao: String = "",
+    val quantidadeAnterior: Int,
+    val quantidadeNova: Int,
+    val motivo: String,
+    val responsavelId: Int,
+    val responsavelNome: String = "",
+    val dataAjuste: LocalDateTime = LocalDateTime.now()
+) {
+    val diferenca: Int
+        get() = quantidadeNova - quantidadeAnterior
+}
+
 enum class TipoMovimentacao { ENTRADA, SAIDA }
 
 /**

@@ -96,10 +96,10 @@ object MenuCadastros {
     private fun alterarSetor() {
         listarSetores()
         val setor = selecionarSetor() ?: return
-        val nome = Entrada.texto("Novo nome [${setor.nome}]: ", 60, { it.length >= 3 })
+        val nome = Entrada.texto("Nome do setor", setor.nome, 60, { it.length >= 3 })
         val descricao = Entrada.textoOpcional("Nova descricao", 200)
-        setorDao.atualizar(setor.copy(nome = nome, descricao = descricao ?: setor.descricao))
-        println("\n  Setor atualizado.")
+        val ok = setorDao.atualizar(setor.copy(nome = nome, descricao = descricao ?: setor.descricao))
+        println(if (ok) "\n  Setor atualizado." else "\n  Nada foi alterado, confere o codigo.")
     }
 
     private fun excluirSetor() {
@@ -233,18 +233,18 @@ object MenuCadastros {
         val func = funcionarioDao.buscarPorId(id)
             ?: throw RegraDeNegocioException("Funcionario nao encontrado.")
 
-        val nome = Entrada.texto("Nome [${func.nome}]: ", 120, { Validacao.nomeValido(it) })
+        val nome = Entrada.texto("Nome", func.nome, 120, { Validacao.nomeValido(it) })
         val email = Entrada.textoOpcional("E-mail", 120, { Validacao.emailValido(it) })
         val telefone = Entrada.textoOpcional("Telefone", 20, { Validacao.telefoneValido(it) })
             ?.let { Validacao.somenteDigitos(it) }
-        val cargo = Entrada.texto("Cargo [${func.cargo}]: ", 60, { it.length >= 3 })
-        val salario = Entrada.decimal("Salario [${Formato.moeda(func.salario)}]: ", BigDecimal("1.00"))
+        val cargo = Entrada.texto("Cargo", func.cargo, 60, { it.length >= 3 })
+        val salario = Entrada.decimal("Salario", func.salario, BigDecimal("1.00"))
 
         setorDao.listar().forEach { println("   [${it.id}] ${it.nome}") }
-        val setorId = Entrada.inteiro("Setor [${func.setorId}]: ", 1)
+        val setorId = Entrada.inteiro("Setor", func.setorId, 1, Int.MAX_VALUE)
         setorDao.buscarPorId(setorId) ?: throw RegraDeNegocioException("Setor nao encontrado.")
 
-        funcionarioDao.atualizar(
+        val ok = funcionarioDao.atualizar(
             func.copy(
                 nome = nome,
                 email = email ?: func.email,
@@ -254,7 +254,7 @@ object MenuCadastros {
                 setorId = setorId
             )
         )
-        println("\n  Cadastro atualizado.")
+        println(if (ok) "\n  Cadastro atualizado." else "\n  Nada foi alterado, confere o codigo.")
     }
 
     private fun alterarSituacaoFuncionario() {
@@ -321,7 +321,7 @@ object MenuCadastros {
         Formato.titulo("Novo cliente")
         val nome = Entrada.texto(
             "Nome / razao social: ", 120,
-            { Validacao.nomeValido(it) }, "Nome invalido."
+            { Validacao.razaoSocialValida(it) }, "Nome invalido (minimo 3 caracteres)."
         )
         val documento = Entrada.texto(
             "CPF ou CNPJ: ", 20,
@@ -359,14 +359,14 @@ object MenuCadastros {
         val cliente = clienteDao.buscarPorId(id)
             ?: throw RegraDeNegocioException("Cliente nao encontrado.")
 
-        val nome = Entrada.texto("Nome [${cliente.nome}]: ", 120, { Validacao.nomeValido(it) })
+        val nome = Entrada.texto("Nome", cliente.nome, 120, { Validacao.razaoSocialValida(it) })
         val email = Entrada.textoOpcional("E-mail", 120, { Validacao.emailValido(it) })
         val telefone = Entrada.textoOpcional("Telefone", 20, { Validacao.telefoneValido(it) })
             ?.let { Validacao.somenteDigitos(it) }
         val endereco = Entrada.textoOpcional("Endereco", 150)
         val cidade = Entrada.textoOpcional("Cidade", 60)
 
-        clienteDao.atualizar(
+        val ok = clienteDao.atualizar(
             cliente.copy(
                 nome = nome,
                 email = email ?: cliente.email,
@@ -375,7 +375,7 @@ object MenuCadastros {
                 cidade = cidade ?: cliente.cidade
             )
         )
-        println("\n  Cadastro atualizado.")
+        println(if (ok) "\n  Cadastro atualizado." else "\n  Nada foi alterado, confere o codigo.")
     }
 
     private fun alterarSituacaoCliente() {
@@ -433,7 +433,10 @@ object MenuCadastros {
 
     private fun cadastrarFornecedor() {
         Formato.titulo("Novo fornecedor")
-        val razao = Entrada.texto("Razao social: ", 120, { it.length >= 3 })
+        val razao = Entrada.texto(
+            "Razao social: ", 120,
+            { Validacao.razaoSocialValida(it) }, "Razao social invalida (minimo 3 caracteres)."
+        )
         val cnpj = Entrada.texto(
             "CNPJ: ", 20,
             { Validacao.cnpjValido(it) }, "CNPJ invalido - confere os digitos."
@@ -460,19 +463,22 @@ object MenuCadastros {
         val fornecedor = fornecedorDao.buscarPorId(id)
             ?: throw RegraDeNegocioException("Fornecedor nao encontrado.")
 
-        val razao = Entrada.texto("Razao social [${fornecedor.razaoSocial}]: ", 120, { it.length >= 3 })
+        val razao = Entrada.texto(
+            "Razao social", fornecedor.razaoSocial, 120,
+            { Validacao.razaoSocialValida(it) }, "Razao social invalida."
+        )
         val email = Entrada.textoOpcional("E-mail", 120, { Validacao.emailValido(it) })
         val telefone = Entrada.textoOpcional("Telefone", 20, { Validacao.telefoneValido(it) })
             ?.let { Validacao.somenteDigitos(it) }
 
-        fornecedorDao.atualizar(
+        val ok = fornecedorDao.atualizar(
             fornecedor.copy(
                 razaoSocial = razao,
                 email = email ?: fornecedor.email,
                 telefone = telefone ?: fornecedor.telefone
             )
         )
-        println("\n  Cadastro atualizado.")
+        println(if (ok) "\n  Cadastro atualizado." else "\n  Nada foi alterado, confere o codigo.")
     }
 
     private fun alterarSituacaoFornecedor() {

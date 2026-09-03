@@ -63,11 +63,14 @@ CREATE TABLE IF NOT EXISTS produto (
     fornecedor_id       INTEGER REFERENCES fornecedor (id)
 );
 
+-- O valor_mensal fica gravado no contrato de proposito: se o plano mudar de
+-- preco depois, quem ja assinou continua pagando o que contratou.
 CREATE TABLE IF NOT EXISTS contrato (
     id                  SERIAL PRIMARY KEY,
     cliente_id          INTEGER NOT NULL REFERENCES cliente (id),
     plano_id            INTEGER NOT NULL REFERENCES plano (id),
     vendedor_id         INTEGER REFERENCES funcionario (id),
+    valor_mensal        NUMERIC(10,2) NOT NULL CHECK (valor_mensal > 0),
     data_inicio         DATE NOT NULL DEFAULT CURRENT_DATE,
     dia_vencimento      INTEGER NOT NULL CHECK (dia_vencimento BETWEEN 1 AND 28),
     status              VARCHAR(12) NOT NULL DEFAULT 'ATIVO'
@@ -109,6 +112,18 @@ CREATE TABLE IF NOT EXISTS item_ordem_servico (
     quantidade  INTEGER NOT NULL CHECK (quantidade > 0)
 );
 
+-- Venda de produto direto pro cliente (roteador avulso, cabo, conector).
+-- Diferente da compra: aqui sai do estoque e entra dinheiro no caixa.
+CREATE TABLE IF NOT EXISTS venda (
+    id              SERIAL PRIMARY KEY,
+    cliente_id      INTEGER NOT NULL REFERENCES cliente (id),
+    produto_id      INTEGER NOT NULL REFERENCES produto (id),
+    quantidade      INTEGER NOT NULL CHECK (quantidade > 0),
+    valor_unitario  NUMERIC(10,2) NOT NULL CHECK (valor_unitario > 0),
+    responsavel_id  INTEGER NOT NULL REFERENCES funcionario (id),
+    data_venda      TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS compra (
     id              SERIAL PRIMARY KEY,
     fornecedor_id   INTEGER NOT NULL REFERENCES fornecedor (id),
@@ -141,9 +156,49 @@ CREATE TABLE IF NOT EXISTS caixa (
     CONSTRAINT caixa_linha_unica CHECK (id = 1)
 );
 
+-- A UNIQUE aqui e o que impede pagar o mesmo salario duas vezes no mes.
+CREATE TABLE IF NOT EXISTS pagamento_salario (
+    id              SERIAL PRIMARY KEY,
+    funcionario_id  INTEGER NOT NULL REFERENCES funcionario (id),
+    competencia     CHAR(7) NOT NULL,
+    valor           NUMERIC(10,2) NOT NULL CHECK (valor > 0),
+    responsavel_id  INTEGER NOT NULL REFERENCES funcionario (id),
+    data_pagamento  TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (funcionario_id, competencia)
+);
+
+-- Toda contagem de inventario que muda o estoque fica registrada com
+-- responsavel e motivo, senao material some sem deixar rastro.
+CREATE TABLE IF NOT EXISTS ajuste_estoque (
+    id                  SERIAL PRIMARY KEY,
+    produto_id          INTEGER NOT NULL REFERENCES produto (id),
+    quantidade_anterior INTEGER NOT NULL,
+    quantidade_nova     INTEGER NOT NULL,
+    motivo              VARCHAR(250) NOT NULL,
+    responsavel_id      INTEGER NOT NULL REFERENCES funcionario (id),
+    data_ajuste         TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_mov_data ON movimentacao_financeira (data_hora);
 CREATE INDEX IF NOT EXISTS idx_fatura_status ON fatura (status);
 CREATE INDEX IF NOT EXISTS idx_os_status ON ordem_servico (status);
+
+-- Ajuste pra quem ja tinha o banco criado antes da coluna valor_mensal existir.
+-- Em banco novo nao faz nada, porque a coluna ja vem no CREATE acima.
+ALTER TABLE contrato ADD COLUMN IF NOT EXISTS valor_mensal NUMERIC(10,2);
+
+UPDATE contrato c
+   SET valor_mensal = p.valor_mensal
+  FROM plano p
+ WHERE p.id = c.plano_id AND c.valor_mensal IS NULL;
+
+-- Depois de preencher, a coluna fica com as mesmas regras do banco novo.
+-- Rodar isso de novo nao muda nada, entao pode ficar no script.
+ALTER TABLE contrato ALTER COLUMN valor_mensal SET NOT NULL;
+
+ALTER TABLE contrato DROP CONSTRAINT IF EXISTS contrato_valor_mensal_check;
+
+ALTER TABLE contrato ADD CONSTRAINT contrato_valor_mensal_check CHECK (valor_mensal > 0);
 
 INSERT INTO caixa (id, saldo) VALUES (1, 0) ON CONFLICT (id) DO NOTHING;
 
