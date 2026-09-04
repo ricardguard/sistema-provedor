@@ -92,7 +92,7 @@ object MenuPrincipal {
         println("  Funcionarios ativos:    ${funcionarioDao.listar(somenteAtivos = true).size}")
         println("  Clientes ativos:        ${clienteDao.listar(somenteAtivos = true).size}")
         println("  Contratos ativos:       $ativos de ${contratos.size}")
-        println("  Receita mensal prevista:${Formato.moeda(receitaPrevista)}")
+        println("  Receita mensal prevista: ${Formato.moeda(receitaPrevista)}")
         println("  Faturas em aberto:      ${faturaDao.listarEmAberto().size}")
         println("  OS em aberto:           ${ordemDao.listar(apenasAbertas = true).size}")
         println("  Itens abaixo do minimo: ${produtoDao.listarAbaixoDoMinimo().size}")
