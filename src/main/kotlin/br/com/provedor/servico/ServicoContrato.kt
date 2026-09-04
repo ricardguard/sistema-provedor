@@ -97,8 +97,8 @@ class ServicoContrato(
                 Caixa.registrarEntrada(
                     valor = plano.taxaInstalacao,
                     categoria = "TAXA_INSTALACAO",
-                    pagador = cliente.nome,
-                    recebedor = Empresa.NOME,
+                    pagador = cliente,
+                    recebedor = Empresa,
                     descricao = "Taxa de instalacao do contrato $id - plano ${plano.nome}",
                     responsavel = responsavel
                 )
@@ -149,6 +149,13 @@ class ServicoContrato(
             throw RegraDeNegocioException("Essa fatura ja esta ${fatura.status.name.lowercase()}.")
         }
 
+        // Busco o cliente de verdade em vez de usar o nome que veio no JOIN:
+        // o Caixa quer uma Pessoa, nao um texto solto.
+        val contrato = contratoDao.buscarPorId(fatura.contratoId)
+            ?: throw RegraDeNegocioException("Contrato da fatura nao encontrado.")
+        val cliente = clienteDao.buscarPorId(contrato.clienteId)
+            ?: throw RegraDeNegocioException("Cliente do contrato nao encontrado.")
+
         return Transacao.executar {
             val agora = LocalDateTime.now()
             if (!faturaDao.marcarComoPaga(fatura.id, agora)) {
@@ -157,8 +164,8 @@ class ServicoContrato(
             Caixa.registrarEntrada(
                 valor = fatura.valor,
                 categoria = "MENSALIDADE",
-                pagador = fatura.clienteNome,
-                recebedor = Empresa.NOME,
+                pagador = cliente,
+                recebedor = Empresa,
                 descricao = "Mensalidade ${fatura.competencia} - contrato ${fatura.contratoId}",
                 responsavel = responsavel
             )

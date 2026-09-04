@@ -71,8 +71,15 @@ object Conexao {
      */
     private fun carregarConfiguracao(): Properties {
         val props = Properties()
+        // O banco.properties fica fora do repositorio porque guarda a senha
+        // desta maquina. Quem clonar o projeto copia o modelo e ajusta - se
+        // esquecer, cai no exemplo e o erro explica o que fazer.
         val arquivo = Conexao::class.java.getResourceAsStream("/banco.properties")
-            ?: throw IllegalStateException("Arquivo banco.properties nao encontrado em resources.")
+            ?: Conexao::class.java.getResourceAsStream("/banco.properties.exemplo")
+            ?: throw IllegalStateException(
+                "Nao encontrei o banco.properties. Copie o banco.properties.exemplo para " +
+                        "banco.properties em src/main/resources e ajuste usuario e senha."
+            )
         arquivo.use { props.load(it) }
 
         System.getenv("PROVEDOR_DB_URL")?.let { props.setProperty("db.url", it) }

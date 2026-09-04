@@ -5,6 +5,7 @@ import br.com.provedor.dao.FornecedorDao
 import br.com.provedor.dao.FuncionarioDao
 import br.com.provedor.dao.SetorDao
 import br.com.provedor.modelo.Cliente
+import br.com.provedor.modelo.Contratacao
 import br.com.provedor.modelo.Fornecedor
 import br.com.provedor.modelo.Funcionario
 import br.com.provedor.modelo.Setor
@@ -165,12 +166,13 @@ object MenuCadastros {
             println("  Nenhum funcionario cadastrado.")
             return
         }
-        println("  COD NOME                       CARGO             SETOR           SALARIO")
+        println("  COD NOME                     CARGO           SETOR         REGIME     SALARIO")
         lista.forEach {
             val marca = if (it.ativo) " " else "*"
             println(
-                "  ${it.id.toString().padStart(3)}$marca${Formato.encurtar(it.nome, 26)} " +
-                        "${Formato.encurtar(it.cargo, 17)} ${Formato.encurtar(it.setorNome, 15)} " +
+                "  ${it.id.toString().padStart(3)}$marca${Formato.encurtar(it.nome, 24)} " +
+                        "${Formato.encurtar(it.cargo, 15)} ${Formato.encurtar(it.setorNome, 13)} " +
+                        "${Formato.encurtar(it.contratacao.rotulo, 10)} " +
                         Formato.moeda(it.salario)
             )
         }
@@ -205,7 +207,8 @@ object MenuCadastros {
         )?.let { Validacao.somenteDigitos(it) }
 
         val cargo = Entrada.texto("Cargo: ", 60, { it.length >= 3 })
-        val salario = Entrada.decimal("Salario: ", BigDecimal("1.00"))
+        val contratacao = escolherContratacao()
+        val salario = Entrada.decimal("Salario / bolsa / valor da nota: ", BigDecimal("1.00"))
 
         println("\n  Setores:")
         setores.forEach { println("   [${it.id}] ${it.nome}") }
@@ -220,7 +223,8 @@ object MenuCadastros {
         val id = funcionarioDao.inserir(
             Funcionario(
                 nome = nome, cpf = cpf, email = email, telefone = telefone,
-                cargo = cargo, salario = salario, setorId = setor.id, dataAdmissao = admissao
+                cargo = cargo, salario = salario, setorId = setor.id,
+                contratacao = contratacao, dataAdmissao = admissao
             )
         )
         println("\n  Funcionario cadastrado com o codigo $id no setor ${setor.nome}.")
@@ -238,7 +242,9 @@ object MenuCadastros {
         val telefone = Entrada.textoOpcional("Telefone", 20, { Validacao.telefoneValido(it) })
             ?.let { Validacao.somenteDigitos(it) }
         val cargo = Entrada.texto("Cargo", func.cargo, 60, { it.length >= 3 })
-        val salario = Entrada.decimal("Salario", func.salario, BigDecimal("1.00"))
+        println("  Regime atual: ${func.contratacao.rotulo}")
+        val contratacao = escolherContratacao()
+        val salario = Entrada.decimal("Salario / bolsa / valor da nota", func.salario, BigDecimal("1.00"))
 
         setorDao.listar().forEach { println("   [${it.id}] ${it.nome}") }
         val setorId = Entrada.inteiro("Setor", func.setorId, 1, Int.MAX_VALUE)
@@ -251,10 +257,24 @@ object MenuCadastros {
                 telefone = telefone ?: func.telefone,
                 cargo = cargo,
                 salario = salario,
-                setorId = setorId
+                setorId = setorId,
+                contratacao = contratacao
             )
         )
         println(if (ok) "\n  Cadastro atualizado." else "\n  Nada foi alterado, confere o codigo.")
+    }
+
+    /**
+     * Cada regime calcula o pagamento de um jeito, por isso ele e escolhido
+     * no cadastro e nao fica so como texto solto.
+     */
+    private fun escolherContratacao(): Contratacao {
+        println("\n  Regime de contratacao:")
+        Contratacao.todas.forEachIndexed { indice, regime ->
+            println("   ${indice + 1} - ${regime.rotulo}")
+        }
+        val escolha = Entrada.inteiro("Regime: ", 1, Contratacao.todas.size)
+        return Contratacao.todas[escolha - 1]
     }
 
     private fun alterarSituacaoFuncionario() {

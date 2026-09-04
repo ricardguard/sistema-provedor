@@ -13,7 +13,7 @@ data class Setor(
 
 data class Funcionario(
     val id: Int = 0,
-    val nome: String,
+    override val nome: String,
     val cpf: String,
     val email: String? = null,
     val telefone: String? = null,
@@ -21,13 +21,22 @@ data class Funcionario(
     val salario: BigDecimal,
     val setorId: Int,
     val setorNome: String = "",
+    val contratacao: Contratacao = Contratacao.Clt,
     val dataAdmissao: LocalDate = LocalDate.now(),
     val ativo: Boolean = true
-)
+) : Pessoa {
+
+    override val documento: String get() = cpf
+
+    override fun tipoDePessoa(): String = "Funcionario"
+
+    /** Quanto sai do caixa por este funcionario - depende do regime dele. */
+    val valorDoPagamento: BigDecimal get() = contratacao.valorLiquido(salario)
+}
 
 data class Cliente(
     val id: Int = 0,
-    val nome: String,
+    override val nome: String,
     val cpfCnpj: String,
     val email: String? = null,
     val telefone: String? = null,
@@ -35,7 +44,15 @@ data class Cliente(
     val cidade: String? = null,
     val dataCadastro: LocalDateTime = LocalDateTime.now(),
     val ativo: Boolean = true
-)
+) : Pessoa {
+
+    override val documento: String get() = cpfCnpj
+
+    override fun tipoDePessoa(): String = "Cliente"
+
+    /** Cliente com 14 digitos e empresa, com 11 e pessoa fisica. */
+    val pessoaJuridica: Boolean get() = cpfCnpj.filter { it.isDigit() }.length == 14
+}
 
 data class Fornecedor(
     val id: Int = 0,
@@ -44,4 +61,13 @@ data class Fornecedor(
     val email: String? = null,
     val telefone: String? = null,
     val ativo: Boolean = true
-)
+) : Pessoa {
+
+    // Fornecedor guarda "razao social", nao "nome" - a interface resolve
+    // essa diferenca de vocabulario sem precisar renomear a coluna.
+    override val nome: String get() = razaoSocial
+
+    override val documento: String get() = cnpj
+
+    override fun tipoDePessoa(): String = "Fornecedor"
+}

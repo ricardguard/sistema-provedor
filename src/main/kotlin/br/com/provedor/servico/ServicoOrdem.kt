@@ -91,6 +91,9 @@ class ServicoOrdem(
             throw RegraDeNegocioException("Essa OS ja esta ${ordem.status.name.lowercase()}.")
         }
 
+        val cliente = clienteDao.buscarPorId(ordem.clienteId)
+            ?: throw RegraDeNegocioException("Cliente da OS nao encontrado.")
+
         return Transacao.executar {
             val agora = LocalDateTime.now()
             if (!ordemDao.encerrar(ordem.id, agora)) {
@@ -100,8 +103,8 @@ class ServicoOrdem(
                 Caixa.registrarEntrada(
                     valor = ordem.valor,
                     categoria = "SERVICO_TECNICO",
-                    pagador = ordem.clienteNome,
-                    recebedor = Empresa.NOME,
+                    pagador = cliente,
+                    recebedor = Empresa,
                     descricao = "OS ${ordem.id} - ${ordem.tipo.name.lowercase()}",
                     responsavel = responsavel
                 )

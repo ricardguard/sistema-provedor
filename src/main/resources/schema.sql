@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS funcionario (
     cargo           VARCHAR(60) NOT NULL,
     salario         NUMERIC(10,2) NOT NULL CHECK (salario >= 0),
     setor_id        INTEGER NOT NULL REFERENCES setor (id),
+    contratacao     VARCHAR(10) NOT NULL DEFAULT 'CLT'
+                    CHECK (contratacao IN ('CLT', 'ESTAGIO', 'PJ')),
     data_admissao   DATE NOT NULL DEFAULT CURRENT_DATE,
     ativo           BOOLEAN NOT NULL DEFAULT TRUE
 );
@@ -186,6 +188,14 @@ CREATE INDEX IF NOT EXISTS idx_os_status ON ordem_servico (status);
 -- Ajuste pra quem ja tinha o banco criado antes da coluna valor_mensal existir.
 -- Em banco novo nao faz nada, porque a coluna ja vem no CREATE acima.
 ALTER TABLE contrato ADD COLUMN IF NOT EXISTS valor_mensal NUMERIC(10,2);
+
+-- Mesma ideia pro regime de contratacao, pra quem ja tinha a tabela criada.
+ALTER TABLE funcionario ADD COLUMN IF NOT EXISTS contratacao VARCHAR(10) NOT NULL DEFAULT 'CLT';
+
+ALTER TABLE funcionario DROP CONSTRAINT IF EXISTS funcionario_contratacao_check;
+
+ALTER TABLE funcionario ADD CONSTRAINT funcionario_contratacao_check
+    CHECK (contratacao IN ('CLT', 'ESTAGIO', 'PJ'));
 
 UPDATE contrato c
    SET valor_mensal = p.valor_mensal

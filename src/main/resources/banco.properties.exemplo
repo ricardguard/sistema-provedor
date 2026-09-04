@@ -1,0 +1,13 @@
+# Modelo de configuracao do banco.
+# Copie para banco.properties e ajuste com os dados da sua maquina:
+#   cp banco.properties.exemplo banco.properties
+#
+# No Mac com Postgres.app ou Homebrew o usuario e o seu login do sistema
+# (rode "whoami") e a senha fica em branco. No Windows/Linux costuma ser
+# postgres com a senha definida na instalacao.
+#
+# Da pra sobrescrever por variavel de ambiente tambem:
+#   PROVEDOR_DB_URL / PROVEDOR_DB_USER / PROVEDOR_DB_PASSWORD
+db.url=jdbc:postgresql://localhost:5432/provedor_db
+db.usuario=postgres
+db.senha=postgres

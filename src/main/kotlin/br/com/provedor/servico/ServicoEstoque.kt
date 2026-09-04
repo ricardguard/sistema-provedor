@@ -67,8 +67,8 @@ class ServicoEstoque(
             Caixa.registrarSaida(
                 valor = total,
                 categoria = "COMPRA_MATERIAL",
-                pagador = Empresa.NOME,
-                recebedor = fornecedor.razaoSocial,
+                pagador = Empresa,
+                recebedor = fornecedor,
                 descricao = "Compra de $quantidade ${produto.unidade} de ${produto.descricao}",
                 responsavel = responsavel
             )
@@ -126,8 +126,8 @@ class ServicoEstoque(
             Caixa.registrarEntrada(
                 valor = total,
                 categoria = "VENDA_PRODUTO",
-                pagador = cliente.nome,
-                recebedor = Empresa.NOME,
+                pagador = cliente,
+                recebedor = Empresa,
                 descricao = "Venda de $quantidade ${produto.unidade} de ${produto.descricao}",
                 responsavel = responsavel
             )

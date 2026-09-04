@@ -1,6 +1,7 @@
 package br.com.provedor.dao
 
 import br.com.provedor.banco.Conexao
+import br.com.provedor.modelo.Contratacao
 import br.com.provedor.modelo.Funcionario
 import java.sql.ResultSet
 import java.sql.Statement
@@ -9,15 +10,16 @@ class FuncionarioDao {
 
     private val selectBase = """
         SELECT f.id, f.nome, f.cpf, f.email, f.telefone, f.cargo, f.salario,
-               f.setor_id, s.nome AS setor_nome, f.data_admissao, f.ativo
+               f.setor_id, s.nome AS setor_nome, f.contratacao, f.data_admissao, f.ativo
           FROM funcionario f
           JOIN setor s ON s.id = f.setor_id
     """.trimIndent()
 
     fun inserir(func: Funcionario): Int {
         val sql = """
-            INSERT INTO funcionario (nome, cpf, email, telefone, cargo, salario, setor_id, data_admissao, ativo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)
+            INSERT INTO funcionario (nome, cpf, email, telefone, cargo, salario, setor_id,
+                                     contratacao, data_admissao, ativo)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
         """.trimIndent()
         Conexao.get().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS).use { ps ->
             ps.setString(1, func.nome)
@@ -27,7 +29,8 @@ class FuncionarioDao {
             ps.setString(5, func.cargo)
             ps.setBigDecimal(6, func.salario)
             ps.setInt(7, func.setorId)
-            ps.setDate(8, java.sql.Date.valueOf(func.dataAdmissao))
+            ps.setString(8, Contratacao.codigoDe(func.contratacao))
+            ps.setDate(9, java.sql.Date.valueOf(func.dataAdmissao))
             ps.executeUpdate()
             ps.generatedKeys.use { rs -> return if (rs.next()) rs.getInt(1) else 0 }
         }
@@ -68,7 +71,8 @@ class FuncionarioDao {
     fun atualizar(func: Funcionario): Boolean {
         val sql = """
             UPDATE funcionario
-               SET nome = ?, email = ?, telefone = ?, cargo = ?, salario = ?, setor_id = ?
+               SET nome = ?, email = ?, telefone = ?, cargo = ?, salario = ?, setor_id = ?,
+                   contratacao = ?
              WHERE id = ?
         """.trimIndent()
         Conexao.get().prepareStatement(sql).use { ps ->
@@ -78,7 +82,8 @@ class FuncionarioDao {
             ps.setString(4, func.cargo)
             ps.setBigDecimal(5, func.salario)
             ps.setInt(6, func.setorId)
-            ps.setInt(7, func.id)
+            ps.setString(7, Contratacao.codigoDe(func.contratacao))
+            ps.setInt(8, func.id)
             return ps.executeUpdate() > 0
         }
     }
@@ -111,6 +116,7 @@ class FuncionarioDao {
         salario = rs.getBigDecimal("salario"),
         setorId = rs.getInt("setor_id"),
         setorNome = rs.getString("setor_nome"),
+        contratacao = Contratacao.de(rs.getString("contratacao")),
         dataAdmissao = rs.getDate("data_admissao").toLocalDate(),
         ativo = rs.getBoolean("ativo")
     )

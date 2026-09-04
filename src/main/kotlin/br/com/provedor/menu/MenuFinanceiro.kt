@@ -55,9 +55,10 @@ object MenuFinanceiro {
         if (funcionarios.isEmpty()) throw RegraDeNegocioException("Nao ha funcionario ativo.")
 
         funcionarios.forEach {
-            println("   [${it.id}] ${Formato.encurtar(it.nome, 26)} ${Formato.encurtar(it.setorNome, 16)} " +
-                    Formato.moeda(it.salario))
+            println("   [${it.id}] ${Formato.encurtar(it.nome, 24)} ${Formato.encurtar(it.setorNome, 14)} " +
+                    "${Formato.encurtar(it.contratacao.rotulo, 11)} ${Formato.moeda(it.valorDoPagamento)}")
         }
+        println("  (valor ja considerando o regime de cada um)")
         val id = Entrada.inteiro("Codigo do funcionario (0 cancela): ", 0)
         if (id == 0) return
 
@@ -68,7 +69,9 @@ object MenuFinanceiro {
         val funcionario = funcionarioDao.buscarPorId(id)
             ?: throw RegraDeNegocioException("Funcionario nao encontrado.")
 
-        println("\n  Vai sair ${Formato.moeda(funcionario.salario)} do caixa " +
+        println("\n  Regime: ${funcionario.contratacao.rotulo}")
+        println("  Cadastrado: ${Formato.moeda(funcionario.salario)}")
+        println("  Vai sair do caixa: ${Formato.moeda(funcionario.valorDoPagamento)} " +
                 "(saldo atual ${Formato.moeda(Caixa.saldoAtual)}).")
         if (!Entrada.confirmar("Confirma o pagamento?")) return
 
@@ -87,7 +90,7 @@ object MenuFinanceiro {
         val equipe = funcionarioDao.listarPorSetor(setorId).filter { it.ativo }
         if (equipe.isEmpty()) throw RegraDeNegocioException("Esse setor nao tem funcionario ativo.")
 
-        val total = equipe.fold(BigDecimal.ZERO) { soma, f -> soma.add(f.salario) }
+        val total = equipe.fold(BigDecimal.ZERO) { soma, f -> soma.add(f.valorDoPagamento) }
         println("\n  ${equipe.size} funcionario(s), total de ${Formato.moeda(total)}.")
         println("  Saldo em caixa: ${Formato.moeda(Caixa.saldoAtual)}")
 

@@ -4,6 +4,7 @@ import br.com.provedor.banco.Conexao
 import br.com.provedor.banco.Transacao
 import br.com.provedor.modelo.Funcionario
 import br.com.provedor.modelo.Movimentacao
+import br.com.provedor.modelo.Pessoa
 import br.com.provedor.modelo.TipoMovimentacao
 import java.math.BigDecimal
 import java.sql.SQLException
@@ -46,8 +47,8 @@ object Caixa {
     fun registrarEntrada(
         valor: BigDecimal,
         categoria: String,
-        pagador: String,
-        recebedor: String,
+        pagador: Pessoa,
+        recebedor: Pessoa,
         descricao: String,
         responsavel: Funcionario
     ): Movimentacao =
@@ -56,8 +57,8 @@ object Caixa {
     fun registrarSaida(
         valor: BigDecimal,
         categoria: String,
-        pagador: String,
-        recebedor: String,
+        pagador: Pessoa,
+        recebedor: Pessoa,
         descricao: String,
         responsavel: Funcionario
     ): Movimentacao =
@@ -67,8 +68,8 @@ object Caixa {
         tipo: TipoMovimentacao,
         valor: BigDecimal,
         categoria: String,
-        pagador: String,
-        recebedor: String,
+        pagador: Pessoa,
+        recebedor: Pessoa,
         descricao: String,
         responsavel: Funcionario
     ): Movimentacao {
@@ -80,7 +81,7 @@ object Caixa {
         if (descricao.isBlank()) {
             throw RegraDeNegocioException("Toda movimentacao precisa de um motivo/descricao.")
         }
-        if (pagador.isBlank() || recebedor.isBlank()) {
+        if (pagador.nome.isBlank() || recebedor.nome.isBlank()) {
             throw RegraDeNegocioException("Informe quem pagou e quem recebeu.")
         }
         if (responsavel.id <= 0) {
@@ -111,8 +112,10 @@ object Caixa {
                     tipo = tipo,
                     categoria = categoria,
                     valor = valor,
-                    pagador = pagador.trim(),
-                    recebedor = recebedor.trim(),
+                    // polimorfismo em uso: o Caixa nao sabe se e Cliente,
+                    // Fornecedor, Funcionario, a Empresa ou um Terceiro
+                    pagador = pagador.nome.trim(),
+                    recebedor = recebedor.nome.trim(),
                     dataHora = LocalDateTime.now(),
                     descricao = descricao.trim(),
                     responsavelId = responsavel.id,

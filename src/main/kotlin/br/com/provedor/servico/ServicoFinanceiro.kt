@@ -7,6 +7,7 @@ import br.com.provedor.dao.PagamentoSalarioDao
 import br.com.provedor.modelo.Funcionario
 import br.com.provedor.modelo.Movimentacao
 import br.com.provedor.modelo.PagamentoSalario
+import br.com.provedor.modelo.Terceiro
 import br.com.provedor.modelo.TipoMovimentacao
 import br.com.provedor.util.Empresa
 import br.com.provedor.util.Validacao
@@ -56,21 +57,27 @@ class ServicoFinanceiro(
             throw RegraDeNegocioException("O salario de ${funcionario.nome} referente a $competencia ja foi pago.")
         }
 
+        // Aqui esta o polimorfismo trabalhando: este servico nao sabe se o
+        // funcionario e CLT, estagiario ou PJ. Ele pergunta ao objeto quanto
+        // pagar, em que categoria lancar e o que escrever na descricao.
+        val valorAPagar = funcionario.valorDoPagamento
+
         return Transacao.executar {
             pagamentoDao.inserir(
                 PagamentoSalario(
                     funcionarioId = funcionario.id,
                     competencia = competencia,
-                    valor = funcionario.salario,
+                    valor = valorAPagar,
                     responsavelId = responsavel.id
                 )
             )
             Caixa.registrarSaida(
-                valor = funcionario.salario,
-                categoria = "FOLHA_PAGAMENTO",
-                pagador = Empresa.NOME,
-                recebedor = funcionario.nome,
-                descricao = "Salario referente a $competencia - setor ${funcionario.setorNome}",
+                valor = valorAPagar,
+                categoria = funcionario.contratacao.categoriaNoCaixa,
+                pagador = Empresa,
+                recebedor = funcionario,
+                descricao = funcionario.contratacao.descricaoDoPagamento(competencia) +
+                        " - setor ${funcionario.setorNome}",
                 responsavel = responsavel
             )
         }.also { Caixa.sincronizar() }
@@ -95,7 +102,8 @@ class ServicoFinanceiro(
         // Confere contra o banco, nao contra o valor em memoria, senao um
         // cache defasado poderia aprovar ou recusar a folha por engano.
         Caixa.sincronizar()
-        val total = equipe.fold(BigDecimal.ZERO) { soma, f -> soma.add(f.salario) }
+        // soma o que cada um vai receber de fato, nao o valor cadastrado
+        val total = equipe.fold(BigDecimal.ZERO) { soma, f -> soma.add(f.valorDoPagamento) }
         if (total > Caixa.saldoAtual) {
             throw SaldoInsuficienteException(
                 "O caixa nao cobre a folha inteira desse setor " +
@@ -120,8 +128,8 @@ class ServicoFinanceiro(
     ): Movimentacao = Caixa.registrarSaida(
         valor = valor,
         categoria = categoria,
-        pagador = Empresa.NOME,
-        recebedor = favorecido,
+        pagador = Empresa,
+        recebedor = Terceiro(favorecido),
         descricao = descricao,
         responsavel = responsavel
     )
@@ -135,8 +143,8 @@ class ServicoFinanceiro(
     ): Movimentacao = Caixa.registrarEntrada(
         valor = valor,
         categoria = "APORTE",
-        pagador = origem,
-        recebedor = Empresa.NOME,
+        pagador = Terceiro(origem),
+        recebedor = Empresa,
         descricao = descricao,
         responsavel = responsavel
     )
