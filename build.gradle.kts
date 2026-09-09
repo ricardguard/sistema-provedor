@@ -18,6 +18,15 @@ kotlin {
     jvmToolchain(21)
 }
 
+// O script do banco fica na pasta "banco", na raiz do projeto, pra ficar
+// facil de achar. Aqui eu declaro essa pasta como resource, entao o
+// schema.sql vai junto no classpath e a Migracao continua achando ele.
+sourceSets {
+    main {
+        resources.srcDir("banco")
+    }
+}
+
 application {
     mainClass.set("br.com.provedor.MainKt")
 }

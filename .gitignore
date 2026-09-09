@@ -4,7 +4,6 @@ out/
 *.class
 .idea/
 *.iml
-
-# macOS
-.DS_Store
+.kotlin/
 src/main/resources/banco.properties
+.DS_Store
