@@ -12,7 +12,6 @@ import br.com.provedor.util.Empresa
 import br.com.provedor.util.Entrada
 import br.com.provedor.util.EntradaEncerradaException
 import br.com.provedor.util.Formato
-import br.com.provedor.util.Validacao
 import java.math.BigDecimal
 
 /**
@@ -36,7 +35,7 @@ fun main() {
         Sessao.identificar()
         MenuPrincipal.exibir()
 
-    } catch (e: EntradaEncerradaException) {
+    } catch (fim: EntradaEncerradaException) {
         println("\n\nEntrada encerrada, fechando o sistema.")
     } catch (e: Exception) {
         println("\n[ERRO] ${e.message}")

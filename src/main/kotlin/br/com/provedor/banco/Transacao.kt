@@ -28,13 +28,13 @@ object Transacao {
             val resultado = bloco()
             conexao.commit()
             return resultado
-        } catch (e: Exception) {
+        } catch (erro: Exception) {
             try {
                 conexao.rollback()
             } catch (erroRollback: SQLException) {
                 println("Aviso: falha ao desfazer a transacao (${erroRollback.message})")
             }
-            throw e
+            throw erro
         } finally {
             Conexao.transacaoAberta = false
             try {

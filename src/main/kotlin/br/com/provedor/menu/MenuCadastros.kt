@@ -12,7 +12,6 @@ import br.com.provedor.modelo.Setor
 import br.com.provedor.servico.RegraDeNegocioException
 import br.com.provedor.util.Entrada
 import br.com.provedor.util.Formato
-import br.com.provedor.util.Validacao
 import java.math.BigDecimal
 import java.time.LocalDate
 

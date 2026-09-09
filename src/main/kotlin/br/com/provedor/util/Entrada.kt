@@ -308,7 +308,7 @@ object Entrada {
 
         try {
             return BigDecimal(normalizado).setScale(2, java.math.RoundingMode.HALF_UP)
-        } catch (e: NumberFormatException) {
+        } catch (naoEhNumero: NumberFormatException) {
             return null
         }
     }
@@ -322,7 +322,7 @@ object Entrada {
             }
             try {
                 return LocalDate.parse(bruto, FORMATO_DATA)
-            } catch (e: Exception) {
+            } catch (dataInvalida: Exception) {
                 println("  > Data invalida. Usa o formato dd/mm/aaaa.")
             }
         }
