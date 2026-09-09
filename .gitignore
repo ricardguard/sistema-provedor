@@ -4,4 +4,11 @@ out/
 *.class
 .idea/
 *.iml
+.kotlin/
+
+# macOS
 .DS_Store
+
+# Configuracao do banco desta maquina - cada um tem a sua.
+# Use o banco.properties.exemplo como modelo.
+src/main/resources/banco.properties
