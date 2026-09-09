@@ -20,14 +20,14 @@ import java.math.BigDecimal
  * Comprar do fornecedor mexe em tres lugares (compra, estoque e caixa),
  * por isso tudo acontece dentro de uma transacao so.
  */
-class ServicoEstoque(
-    private val produtoDao: ProdutoDao = ProdutoDao(),
-    private val compraDao: CompraDao = CompraDao(),
-    private val vendaDao: VendaDao = VendaDao(),
-    private val fornecedorDao: FornecedorDao = FornecedorDao(),
-    private val clienteDao: ClienteDao = ClienteDao(),
-    private val ajusteDao: AjusteEstoqueDao = AjusteEstoqueDao()
-) {
+class ServicoEstoque {
+
+    private val produtoDao = ProdutoDao()
+    private val compraDao = CompraDao()
+    private val vendaDao = VendaDao()
+    private val fornecedorDao = FornecedorDao()
+    private val clienteDao = ClienteDao()
+    private val ajusteDao = AjusteEstoqueDao()
 
     fun comprarDoFornecedor(
         produto: Produto,
@@ -46,7 +46,7 @@ class ServicoEstoque(
 
         val total = valorUnitario.multiply(BigDecimal(quantidade))
 
-        return Transacao.executar {
+        val resultado = Transacao.executar {
             val compra = Compra(
                 fornecedorId = fornecedor.id,
                 produtoId = produto.id,
@@ -74,7 +74,11 @@ class ServicoEstoque(
             )
 
             compra.copy(id = id, fornecedorNome = fornecedor.razaoSocial, produtoDescricao = produto.descricao)
-        }.also { Caixa.sincronizar() }
+        }
+
+        // a transacao fechou, entao agora da pra reler o saldo
+        Caixa.sincronizar()
+        return resultado
     }
 
     /**
@@ -105,7 +109,7 @@ class ServicoEstoque(
 
         val total = valorUnitario.multiply(BigDecimal(quantidade))
 
-        return Transacao.executar {
+        val resultado = Transacao.executar {
             val venda = Venda(
                 clienteId = cliente.id,
                 produtoId = produto.id,
@@ -133,7 +137,11 @@ class ServicoEstoque(
             )
 
             venda.copy(id = id, clienteNome = cliente.nome, produtoDescricao = produto.descricao)
-        }.also { Caixa.sincronizar() }
+        }
+
+        // a transacao fechou, entao agora da pra reler o saldo
+        Caixa.sincronizar()
+        return resultado
     }
 
     /** Baixa de material usado em campo. Nao mexe em dinheiro, so no estoque. */

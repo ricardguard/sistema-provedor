@@ -30,11 +30,11 @@ data class ResumoCaixa(
  * Operacoes financeiras que nao vem de contrato nem de OS:
  * folha de pagamento, despesas fixas e aporte do socio.
  */
-class ServicoFinanceiro(
-    private val movimentacaoDao: MovimentacaoDao = MovimentacaoDao(),
-    private val funcionarioDao: FuncionarioDao = FuncionarioDao(),
-    private val pagamentoDao: PagamentoSalarioDao = PagamentoSalarioDao()
-) {
+class ServicoFinanceiro {
+
+    private val movimentacaoDao = MovimentacaoDao()
+    private val funcionarioDao = FuncionarioDao()
+    private val pagamentoDao = PagamentoSalarioDao()
 
     /**
      * Pagamento de salario. Sai do caixa, fica registrado quem autorizou e
@@ -62,7 +62,7 @@ class ServicoFinanceiro(
         // pagar, em que categoria lancar e o que escrever na descricao.
         val valorAPagar = funcionario.valorDoPagamento
 
-        return Transacao.executar {
+        val resultado = Transacao.executar {
             pagamentoDao.inserir(
                 PagamentoSalario(
                     funcionarioId = funcionario.id,
@@ -80,7 +80,11 @@ class ServicoFinanceiro(
                         " - setor ${funcionario.setorNome}",
                 responsavel = responsavel
             )
-        }.also { Caixa.sincronizar() }
+        }
+
+        // a transacao fechou, entao agora da pra reler o saldo
+        Caixa.sincronizar()
+        return resultado
     }
 
     /**
@@ -103,7 +107,10 @@ class ServicoFinanceiro(
         // cache defasado poderia aprovar ou recusar a folha por engano.
         Caixa.sincronizar()
         // soma o que cada um vai receber de fato, nao o valor cadastrado
-        val total = equipe.fold(BigDecimal.ZERO) { soma, f -> soma.add(f.valorDoPagamento) }
+        var total = BigDecimal.ZERO
+        for (funcionario in equipe) {
+            total = total.add(funcionario.valorDoPagamento)
+        }
         if (total > Caixa.saldoAtual) {
             throw SaldoInsuficienteException(
                 "O caixa nao cobre a folha inteira desse setor " +
@@ -111,9 +118,13 @@ class ServicoFinanceiro(
             )
         }
 
-        return Transacao.executar {
+        val resultado = Transacao.executar {
             equipe.map { pagarSalario(it.id, competencia, responsavel) }
-        }.also { Caixa.sincronizar() }
+        }
+
+        // a transacao fechou, entao agora da pra reler o saldo
+        Caixa.sincronizar()
+        return resultado
     }
 
     fun folhaDaCompetencia(competencia: String) = pagamentoDao.listarPorCompetencia(competencia)

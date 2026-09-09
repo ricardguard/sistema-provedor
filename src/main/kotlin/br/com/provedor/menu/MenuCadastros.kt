@@ -82,10 +82,7 @@ object MenuCadastros {
 
     private fun cadastrarSetor() {
         Formato.titulo("Novo setor")
-        val nome = Entrada.texto(
-            "Nome do setor: ", 60,
-            { it.length >= 3 }, "O nome precisa de pelo menos 3 letras."
-        )
+        val nome = Entrada.texto("Nome do setor: ", 60, 3)
         if (setorDao.listar().any { it.nome.equals(nome, ignoreCase = true) }) {
             throw RegraDeNegocioException("Ja existe um setor com esse nome.")
         }
@@ -97,7 +94,7 @@ object MenuCadastros {
     private fun alterarSetor() {
         listarSetores()
         val setor = selecionarSetor() ?: return
-        val nome = Entrada.texto("Nome do setor", setor.nome, 60, { it.length >= 3 })
+        val nome = Entrada.texto("Nome do setor", setor.nome, 60, 3)
         val descricao = Entrada.textoOpcional("Nova descricao", 200)
         val ok = setorDao.atualizar(setor.copy(nome = nome, descricao = descricao ?: setor.descricao))
         println(if (ok) "\n  Setor atualizado." else "\n  Nada foi alterado, confere o codigo.")
@@ -184,29 +181,17 @@ object MenuCadastros {
         val setores = setorDao.listar()
         if (setores.isEmpty()) throw RegraDeNegocioException("Cadastre um setor antes.")
 
-        val nome = Entrada.texto(
-            "Nome completo: ", 120,
-            { Validacao.nomeValido(it) }, "Nome invalido (so letras e espaco, minimo 3)."
-        )
-        val cpf = Entrada.texto(
-            "CPF: ", 18,
-            { Validacao.cpfValido(it) }, "CPF invalido - confere os digitos."
-        ).let { Validacao.somenteDigitos(it) }
+        val nome = Entrada.nome("Nome completo: ")
+        val cpf = Entrada.cpf("CPF: ")
 
         if (funcionarioDao.existeCpf(cpf)) {
             throw RegraDeNegocioException("Ja tem funcionario cadastrado com esse CPF.")
         }
 
-        val email = Entrada.textoOpcional(
-            "E-mail", 120,
-            { Validacao.emailValido(it) }, "E-mail fora do formato nome@dominio.com."
-        )
-        val telefone = Entrada.textoOpcional(
-            "Telefone com DDD", 20,
-            { Validacao.telefoneValido(it) }, "Telefone precisa ter 10 ou 11 numeros."
-        )?.let { Validacao.somenteDigitos(it) }
+        val email = Entrada.emailOpcional("E-mail")
+        val telefone = Entrada.telefoneOpcional("Telefone com DDD")
 
-        val cargo = Entrada.texto("Cargo: ", 60, { it.length >= 3 })
+        val cargo = Entrada.texto("Cargo: ", 60, 3)
         val contratacao = escolherContratacao()
         val salario = Entrada.decimal("Salario / bolsa / valor da nota: ", BigDecimal("1.00"))
 
@@ -237,11 +222,10 @@ object MenuCadastros {
         val func = funcionarioDao.buscarPorId(id)
             ?: throw RegraDeNegocioException("Funcionario nao encontrado.")
 
-        val nome = Entrada.texto("Nome", func.nome, 120, { Validacao.nomeValido(it) })
-        val email = Entrada.textoOpcional("E-mail", 120, { Validacao.emailValido(it) })
-        val telefone = Entrada.textoOpcional("Telefone", 20, { Validacao.telefoneValido(it) })
-            ?.let { Validacao.somenteDigitos(it) }
-        val cargo = Entrada.texto("Cargo", func.cargo, 60, { it.length >= 3 })
+        val nome = Entrada.nome("Nome", func.nome)
+        val email = Entrada.emailOpcional("E-mail")
+        val telefone = Entrada.telefoneOpcional("Telefone")
+        val cargo = Entrada.texto("Cargo", func.cargo, 60, 3)
         println("  Regime atual: ${func.contratacao.rotulo}")
         val contratacao = escolherContratacao()
         val salario = Entrada.decimal("Salario / bolsa / valor da nota", func.salario, BigDecimal("1.00"))
@@ -339,22 +323,15 @@ object MenuCadastros {
 
     private fun cadastrarCliente() {
         Formato.titulo("Novo cliente")
-        val nome = Entrada.texto(
-            "Nome / razao social: ", 120,
-            { Validacao.razaoSocialValida(it) }, "Nome invalido (minimo 3 caracteres)."
-        )
-        val documento = Entrada.texto(
-            "CPF ou CNPJ: ", 20,
-            { Validacao.documentoValido(it) }, "Documento invalido - confere os digitos."
-        ).let { Validacao.somenteDigitos(it) }
+        val nome = Entrada.razaoSocial("Nome / razao social: ")
+        val documento = Entrada.documento("CPF ou CNPJ: ")
 
         if (clienteDao.existeDocumento(documento)) {
             throw RegraDeNegocioException("Ja existe cliente com esse documento.")
         }
 
-        val email = Entrada.textoOpcional("E-mail", 120, { Validacao.emailValido(it) })
-        val telefone = Entrada.textoOpcional("Telefone com DDD", 20, { Validacao.telefoneValido(it) })
-            ?.let { Validacao.somenteDigitos(it) }
+        val email = Entrada.emailOpcional("E-mail")
+        val telefone = Entrada.telefoneOpcional("Telefone com DDD")
         val endereco = Entrada.textoOpcional("Endereco", 150)
         val cidade = Entrada.textoOpcional("Cidade", 60)
 
@@ -368,7 +345,7 @@ object MenuCadastros {
     }
 
     private fun buscarCliente() {
-        val termo = Entrada.texto("Nome ou documento: ", 120, { it.length >= 2 })
+        val termo = Entrada.texto("Nome ou documento: ", 120, 2)
         listarClientes(clienteDao.buscarPorNomeOuDocumento(termo))
     }
 
@@ -379,10 +356,9 @@ object MenuCadastros {
         val cliente = clienteDao.buscarPorId(id)
             ?: throw RegraDeNegocioException("Cliente nao encontrado.")
 
-        val nome = Entrada.texto("Nome", cliente.nome, 120, { Validacao.razaoSocialValida(it) })
-        val email = Entrada.textoOpcional("E-mail", 120, { Validacao.emailValido(it) })
-        val telefone = Entrada.textoOpcional("Telefone", 20, { Validacao.telefoneValido(it) })
-            ?.let { Validacao.somenteDigitos(it) }
+        val nome = Entrada.razaoSocial("Nome", cliente.nome)
+        val email = Entrada.emailOpcional("E-mail")
+        val telefone = Entrada.telefoneOpcional("Telefone")
         val endereco = Entrada.textoOpcional("Endereco", 150)
         val cidade = Entrada.textoOpcional("Cidade", 60)
 
@@ -453,22 +429,15 @@ object MenuCadastros {
 
     private fun cadastrarFornecedor() {
         Formato.titulo("Novo fornecedor")
-        val razao = Entrada.texto(
-            "Razao social: ", 120,
-            { Validacao.razaoSocialValida(it) }, "Razao social invalida (minimo 3 caracteres)."
-        )
-        val cnpj = Entrada.texto(
-            "CNPJ: ", 20,
-            { Validacao.cnpjValido(it) }, "CNPJ invalido - confere os digitos."
-        ).let { Validacao.somenteDigitos(it) }
+        val razao = Entrada.razaoSocial("Razao social: ")
+        val cnpj = Entrada.cnpj("CNPJ: ")
 
         if (fornecedorDao.existeCnpj(cnpj)) {
             throw RegraDeNegocioException("Esse CNPJ ja esta cadastrado.")
         }
 
-        val email = Entrada.textoOpcional("E-mail", 120, { Validacao.emailValido(it) })
-        val telefone = Entrada.textoOpcional("Telefone com DDD", 20, { Validacao.telefoneValido(it) })
-            ?.let { Validacao.somenteDigitos(it) }
+        val email = Entrada.emailOpcional("E-mail")
+        val telefone = Entrada.telefoneOpcional("Telefone com DDD")
 
         val id = fornecedorDao.inserir(
             Fornecedor(razaoSocial = razao, cnpj = cnpj, email = email, telefone = telefone)
@@ -483,13 +452,9 @@ object MenuCadastros {
         val fornecedor = fornecedorDao.buscarPorId(id)
             ?: throw RegraDeNegocioException("Fornecedor nao encontrado.")
 
-        val razao = Entrada.texto(
-            "Razao social", fornecedor.razaoSocial, 120,
-            { Validacao.razaoSocialValida(it) }, "Razao social invalida."
-        )
-        val email = Entrada.textoOpcional("E-mail", 120, { Validacao.emailValido(it) })
-        val telefone = Entrada.textoOpcional("Telefone", 20, { Validacao.telefoneValido(it) })
-            ?.let { Validacao.somenteDigitos(it) }
+        val razao = Entrada.razaoSocial("Razao social", fornecedor.razaoSocial)
+        val email = Entrada.emailOpcional("E-mail")
+        val telefone = Entrada.telefoneOpcional("Telefone")
 
         val ok = fornecedorDao.atualizar(
             fornecedor.copy(

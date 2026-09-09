@@ -62,10 +62,7 @@ object MenuFinanceiro {
         val id = Entrada.inteiro("Codigo do funcionario (0 cancela): ", 0)
         if (id == 0) return
 
-        val competencia = Entrada.texto(
-            "Competencia (MM/AAAA): ", 7,
-            { Validacao.competenciaValida(it) }, "Use o formato MM/AAAA."
-        )
+        val competencia = Entrada.competencia("Competencia (MM/AAAA): ")
         val funcionario = funcionarioDao.buscarPorId(id)
             ?: throw RegraDeNegocioException("Funcionario nao encontrado.")
 
@@ -90,14 +87,14 @@ object MenuFinanceiro {
         val equipe = funcionarioDao.listarPorSetor(setorId).filter { it.ativo }
         if (equipe.isEmpty()) throw RegraDeNegocioException("Esse setor nao tem funcionario ativo.")
 
-        val total = equipe.fold(BigDecimal.ZERO) { soma, f -> soma.add(f.valorDoPagamento) }
+        var total = BigDecimal.ZERO
+        for (funcionario in equipe) {
+            total = total.add(funcionario.valorDoPagamento)
+        }
         println("\n  ${equipe.size} funcionario(s), total de ${Formato.moeda(total)}.")
         println("  Saldo em caixa: ${Formato.moeda(Caixa.saldoAtual)}")
 
-        val competencia = Entrada.texto(
-            "Competencia (MM/AAAA): ", 7,
-            { Validacao.competenciaValida(it) }, "Use o formato MM/AAAA."
-        )
+        val competencia = Entrada.competencia("Competencia (MM/AAAA): ")
         if (!Entrada.confirmar("Confirma o pagamento da folha do setor?")) return
 
         // O servico paga a folha inteira numa transacao so: cada salario vira
@@ -110,9 +107,9 @@ object MenuFinanceiro {
         Formato.titulo("Pagamento de despesa")
         println("  Categorias comuns: ENERGIA, ALUGUEL, LINK_INTERNET, COMBUSTIVEL, MANUTENCAO, IMPOSTOS")
 
-        val categoria = Entrada.texto("Categoria: ", 30, { it.length >= 3 }).uppercase().replace(" ", "_")
-        val favorecido = Entrada.texto("Quem vai receber: ", 120, { it.length >= 3 })
-        val descricao = Entrada.texto("Motivo/descricao: ", 250, { it.length >= 5 })
+        val categoria = Entrada.texto("Categoria: ", 30, 3).uppercase().replace(" ", "_")
+        val favorecido = Entrada.texto("Quem vai receber: ", 120, 3)
+        val descricao = Entrada.texto("Motivo/descricao: ", 250, 5)
         val valor = Entrada.decimal("Valor: ", BigDecimal("0.01"))
 
         println("\n  Saldo atual: ${Formato.moeda(Caixa.saldoAtual)}")
@@ -124,8 +121,8 @@ object MenuFinanceiro {
 
     private fun registrarAporte() {
         Formato.titulo("Aporte no caixa")
-        val origem = Entrada.texto("Quem esta colocando o dinheiro: ", 120, { it.length >= 3 })
-        val descricao = Entrada.texto("Motivo: ", 250, { it.length >= 5 })
+        val origem = Entrada.texto("Quem esta colocando o dinheiro: ", 120, 3)
+        val descricao = Entrada.texto("Motivo: ", 250, 5)
         val valor = Entrada.decimal("Valor: ", BigDecimal("0.01"))
 
         if (!Entrada.confirmar("Confirma a entrada de ${Formato.moeda(valor)}?")) return
@@ -189,8 +186,11 @@ object MenuFinanceiro {
         val categorias = servicoFinanceiro.totaisPorCategoria(inicio, fim)
         if (categorias.isNotEmpty()) {
             println("\n  Por categoria:")
-            categorias.forEach { (tipo, categoria, total) ->
-                println("   ${tipo.padEnd(8)} ${Formato.encurtar(categoria, 20)} ${Formato.moeda(total)}")
+            for (linha in categorias) {
+                println(
+                    "   ${linha.tipo.padEnd(8)} ${Formato.encurtar(linha.categoria, 20)} " +
+                            Formato.moeda(linha.total)
+                )
             }
         }
         println("\n  Empresa: ${Empresa.NOME}")

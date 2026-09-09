@@ -57,7 +57,10 @@ object Conexao {
 
     fun fechar() {
         try {
-            conexao?.takeIf { !it.isClosed }?.close()
+            val atual = conexao
+            if (atual != null && !atual.isClosed) {
+                atual.close()
+            }
         } catch (e: SQLException) {
             println("Aviso: erro ao fechar a conexao (${e.message})")
         } finally {
@@ -82,9 +85,15 @@ object Conexao {
             )
         arquivo.use { props.load(it) }
 
-        System.getenv("PROVEDOR_DB_URL")?.let { props.setProperty("db.url", it) }
-        System.getenv("PROVEDOR_DB_USER")?.let { props.setProperty("db.usuario", it) }
-        System.getenv("PROVEDOR_DB_PASSWORD")?.let { props.setProperty("db.senha", it) }
+        // Se a variavel de ambiente existir, ela manda no que veio do arquivo.
+        val url = System.getenv("PROVEDOR_DB_URL")
+        if (url != null) props.setProperty("db.url", url)
+
+        val usuario = System.getenv("PROVEDOR_DB_USER")
+        if (usuario != null) props.setProperty("db.usuario", usuario)
+
+        val senha = System.getenv("PROVEDOR_DB_PASSWORD")
+        if (senha != null) props.setProperty("db.senha", senha)
         return props
     }
 }

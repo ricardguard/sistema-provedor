@@ -4,6 +4,4 @@ out/
 *.class
 .idea/
 *.iml
-.kotlin/
-src/main/resources/banco.properties
 .DS_Store

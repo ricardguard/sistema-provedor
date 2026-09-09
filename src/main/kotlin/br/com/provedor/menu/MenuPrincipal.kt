@@ -83,9 +83,12 @@ object MenuPrincipal {
     private fun panorama() {
         val contratos = contratoDao.listar()
         val ativos = contratos.count { it.status == StatusContrato.ATIVO }
-        val receitaPrevista = contratos
-            .filter { it.status == StatusContrato.ATIVO }
-            .fold(BigDecimal.ZERO) { soma, c -> soma.add(c.valorMensal) }
+        var receitaPrevista = BigDecimal.ZERO
+        for (contrato in contratos) {
+            if (contrato.status == StatusContrato.ATIVO) {
+                receitaPrevista = receitaPrevista.add(contrato.valorMensal)
+            }
+        }
 
         Formato.titulo("Panorama - ${Empresa.NOME}")
         println("  Setores:                ${setorDao.listar().size}")
@@ -108,7 +111,10 @@ object MenuPrincipal {
         }
         setores.forEach { setor ->
             val equipe = funcionarioDao.listarPorSetor(setor.id).filter { it.ativo }
-            val folha = equipe.fold(BigDecimal.ZERO) { soma, f -> soma.add(f.salario) }
+            var folha = BigDecimal.ZERO
+            for (funcionario in equipe) {
+                folha = folha.add(funcionario.salario)
+            }
             println("\n  ${setor.nome} - ${equipe.size} pessoa(s) - folha ${Formato.moeda(folha)}")
             equipe.forEach { println("    - ${Formato.encurtar(it.nome, 28)} ${it.cargo}") }
             if (equipe.isEmpty()) println("    (sem funcionario ativo)")
@@ -122,7 +128,10 @@ object MenuPrincipal {
             println("  Nenhuma fatura em atraso.")
             return
         }
-        val total = vencidas.fold(BigDecimal.ZERO) { soma, f -> soma.add(f.valor) }
+        var total = BigDecimal.ZERO
+        for (fatura in vencidas) {
+            total = total.add(fatura.valor)
+        }
         vencidas.forEach {
             println("  [${it.id}] ${Formato.encurtar(it.clienteNome, 26)} ${it.competencia} " +
                     "venceu em ${Formato.data(it.vencimento)} - ${Formato.moeda(it.valor)}")

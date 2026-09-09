@@ -75,7 +75,7 @@ object MenuOrdens {
         TipoOrdem.entries.forEachIndexed { indice, tipo -> println("   ${indice + 1} - $tipo") }
         val tipo = TipoOrdem.entries[Entrada.inteiro("Tipo: ", 1, TipoOrdem.entries.size) - 1]
 
-        val descricao = Entrada.texto("Descricao do servico: ", 250, { it.length >= 5 })
+        val descricao = Entrada.texto("Descricao do servico: ", 250, 5)
         val valor = Entrada.decimal("Valor da mao de obra (0 se for cortesia): ")
 
         val tecnicos = funcionarioDao.listar(somenteAtivos = true)

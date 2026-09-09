@@ -70,17 +70,10 @@ private fun primeiroAcesso() {
     println("  que vai ser o responsavel pelas primeiras operacoes do caixa.")
     println()
 
-    val nome = Entrada.texto(
-        "Nome completo: ", 120,
-        { Validacao.nomeValido(it) }, "Nome invalido."
-    )
-    val cpf = Entrada.texto(
-        "CPF: ", 18,
-        { Validacao.cpfValido(it) }, "CPF invalido."
-    ).let { Validacao.somenteDigitos(it) }
-
-    val email = Entrada.textoOpcional("E-mail", 120, { Validacao.emailValido(it) })
-    val cargo = Entrada.texto("Cargo: ", 60, { it.length >= 3 })
+    val nome = Entrada.nome("Nome completo: ")
+    val cpf = Entrada.cpf("CPF: ")
+    val email = Entrada.emailOpcional("E-mail")
+    val cargo = Entrada.texto("Cargo: ", 60, 3)
     val salario = Entrada.decimal("Salario: ", BigDecimal("1.00"))
 
     println("\n  Setores ja criados:")

@@ -7,6 +7,13 @@ import java.math.BigDecimal
 import java.sql.ResultSet
 import java.time.LocalDate
 
+/** Uma linha do relatorio "total por categoria". */
+data class TotalPorCategoria(
+    val tipo: String,
+    val categoria: String,
+    val total: java.math.BigDecimal
+)
+
 class MovimentacaoDao {
 
     private val selectBase = """
@@ -53,8 +60,8 @@ class MovimentacaoDao {
         }
     }
 
-    fun totaisPorCategoria(inicio: LocalDate, fim: LocalDate): List<Triple<String, String, BigDecimal>> {
-        val lista = mutableListOf<Triple<String, String, BigDecimal>>()
+    fun totaisPorCategoria(inicio: LocalDate, fim: LocalDate): List<TotalPorCategoria> {
+        val lista = mutableListOf<TotalPorCategoria>()
         val sql = """
             SELECT tipo, categoria, SUM(valor) AS total
               FROM movimentacao_financeira
@@ -67,7 +74,13 @@ class MovimentacaoDao {
             ps.setTimestamp(2, java.sql.Timestamp.valueOf(fim.plusDays(1).atStartOfDay()))
             ps.executeQuery().use { rs ->
                 while (rs.next()) {
-                    lista.add(Triple(rs.getString("tipo"), rs.getString("categoria"), rs.getBigDecimal("total")))
+                    lista.add(
+                        TotalPorCategoria(
+                            tipo = rs.getString("tipo"),
+                            categoria = rs.getString("categoria"),
+                            total = rs.getBigDecimal("total")
+                        )
+                    )
                 }
             }
         }

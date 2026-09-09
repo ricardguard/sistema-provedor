@@ -18,13 +18,13 @@ import java.time.LocalDateTime
  * Ordem de servico: instalacao, manutencao e retirada.
  * E aqui que o produto do estoque encontra o servico prestado ao cliente.
  */
-class ServicoOrdem(
-    private val ordemDao: OrdemServicoDao = OrdemServicoDao(),
-    private val clienteDao: ClienteDao = ClienteDao(),
-    private val funcionarioDao: FuncionarioDao = FuncionarioDao(),
-    private val produtoDao: ProdutoDao = ProdutoDao(),
-    private val servicoEstoque: ServicoEstoque = ServicoEstoque()
-) {
+class ServicoOrdem {
+
+    private val ordemDao = OrdemServicoDao()
+    private val clienteDao = ClienteDao()
+    private val funcionarioDao = FuncionarioDao()
+    private val produtoDao = ProdutoDao()
+    private val servicoEstoque = ServicoEstoque()
 
     fun abrir(
         clienteId: Int,
@@ -94,7 +94,7 @@ class ServicoOrdem(
         val cliente = clienteDao.buscarPorId(ordem.clienteId)
             ?: throw RegraDeNegocioException("Cliente da OS nao encontrado.")
 
-        return Transacao.executar {
+        val resultado = Transacao.executar {
             val agora = LocalDateTime.now()
             if (!ordemDao.encerrar(ordem.id, agora)) {
                 throw RegraDeNegocioException("Nao consegui encerrar a OS.")
@@ -110,7 +110,11 @@ class ServicoOrdem(
                 )
             }
             ordem.copy(status = StatusOrdem.ENCERRADA, encerramento = agora)
-        }.also { Caixa.sincronizar() }
+        }
+
+        // a transacao fechou, entao agora da pra reler o saldo
+        Caixa.sincronizar()
+        return resultado
     }
 
     /**

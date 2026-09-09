@@ -74,8 +74,8 @@ object MenuEstoque {
 
     private fun cadastrarProduto() {
         Formato.titulo("Novo produto")
-        val descricao = Entrada.texto("Descricao: ", 120, { it.length >= 3 })
-        val unidade = Entrada.texto("Unidade (UN, MT, CX): ", 10, { it.length in 1..10 }).uppercase()
+        val descricao = Entrada.texto("Descricao: ", 120, 3)
+        val unidade = Entrada.texto("Unidade (UN, MT, CX): ", 10).uppercase()
         val quantidade = Entrada.inteiro("Quantidade inicial em estoque: ", 0)
         val minimo = Entrada.inteiro("Estoque minimo: ", 0)
         val custo = Entrada.decimal("Preco de custo: ")
@@ -107,8 +107,8 @@ object MenuEstoque {
         listarProdutos(produtoDao.listar())
         val produto = selecionarProduto() ?: return
 
-        val descricao = Entrada.texto("Descricao", produto.descricao, 120, { it.length >= 3 })
-        val unidade = Entrada.texto("Unidade", produto.unidade, 10, { it.length in 1..10 }).uppercase()
+        val descricao = Entrada.texto("Descricao", produto.descricao, 120, 3)
+        val unidade = Entrada.texto("Unidade", produto.unidade, 10).uppercase()
         val minimo = Entrada.inteiro("Estoque minimo", produto.estoqueMinimo, 0, Int.MAX_VALUE)
         val custo = Entrada.decimal("Preco de custo", produto.precoCusto)
         val venda = Entrada.decimal("Preco de venda", produto.precoVenda)
@@ -218,8 +218,7 @@ object MenuEstoque {
             println("\n  Contagem bateu com o sistema, nada a ajustar.")
             return
         }
-        val motivo = Entrada.texto("Motivo do ajuste: ", 250, { it.length >= 5 },
-            "Explica o motivo com pelo menos 5 caracteres.")
+        val motivo = Entrada.texto("Motivo do ajuste: ", 250, 5)
         if (Entrada.confirmar("Ajustar de ${produto.quantidadeEstoque} para $contado?")) {
             val ajuste = servicoEstoque.ajustarInventario(produto, contado, motivo, Sessao.logado)
             val sinal = if (ajuste.diferenca > 0) "+" else ""

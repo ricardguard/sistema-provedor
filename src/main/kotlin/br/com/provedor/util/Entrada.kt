@@ -8,8 +8,17 @@ import java.time.format.DateTimeFormatter
 class EntradaEncerradaException : RuntimeException("Entrada do console encerrada.")
 
 /**
- * Leitura do teclado. Toda funcao aqui fica presa em loop ate receber
- * um valor valido, entao quem chama nao precisa ficar tratando lixo.
+ * Leitura do teclado.
+ *
+ * Toda funcao aqui fica presa num laco ate receber um valor valido, entao
+ * quem chama nao precisa conferir nada depois. Tem duas partes:
+ *
+ *  - as funcoes genericas (texto, inteiro, decimal, data);
+ *  - uma funcao por tipo de campo do sistema (nome, cpf, cnpj, email...),
+ *    cada uma com a sua propria regra de validacao.
+ *
+ * Fiz uma funcao por campo de proposito. Assim quem le o menu ve
+ * "Entrada.cpf(...)" e sabe na hora o que vai ser cobrado do usuario.
  */
 object Entrada {
 
@@ -34,126 +43,273 @@ object Entrada {
         return linha.trim()
     }
 
-    fun texto(rotulo: String, maximo: Int = 120, validador: ((String) -> Boolean)? = null,
-              mensagemErro: String = "Valor invalido, tenta de novo."): String {
+    // ------------------------------------------------------------------
+    // TEXTO
+    // ------------------------------------------------------------------
+
+    /** Campo de texto obrigatorio, com tamanho minimo e maximo. */
+    fun texto(rotulo: String, maximo: Int = 120, minimo: Int = 1): String {
         while (true) {
             val valor = ler(rotulo)
-            when {
-                valor.isBlank() -> println("  > Esse campo e obrigatorio.")
-                valor.length > maximo -> println("  > No maximo $maximo caracteres.")
-                validador != null && !validador(valor) -> println("  > $mensagemErro")
-                else -> return valor
+            if (valor.isBlank()) {
+                println("  > Esse campo e obrigatorio.")
+            } else if (valor.length < minimo) {
+                println("  > Precisa ter pelo menos $minimo caracteres.")
+            } else if (valor.length > maximo) {
+                println("  > No maximo $maximo caracteres.")
+            } else {
+                return valor
             }
         }
     }
 
-    /** Campos que podem ficar em branco no banco voltam como null mesmo. */
-    fun textoOpcional(rotulo: String, maximo: Int = 120, validador: ((String?) -> Boolean)? = null,
-                      mensagemErro: String = "Valor invalido."): String? {
+    /** Mesma coisa, mas nas telas de alteracao: enter vazio mantem o valor atual. */
+    fun texto(rotulo: String, padrao: String, maximo: Int = 120, minimo: Int = 1): String {
         while (true) {
-            val valor = ler("$rotulo (enter pra deixar em branco): ")
-            if (valor.isBlank()) return null
-            when {
-                valor.length > maximo -> println("  > No maximo $maximo caracteres.")
-                validador != null && !validador(valor) -> println("  > $mensagemErro")
-                else -> return valor
+            val valor = ler("$rotulo [$padrao] (enter mantem): ")
+            if (valor.isBlank()) {
+                return padrao
+            } else if (valor.length < minimo) {
+                println("  > Precisa ter pelo menos $minimo caracteres.")
+            } else if (valor.length > maximo) {
+                println("  > No maximo $maximo caracteres.")
+            } else {
+                return valor
             }
         }
     }
+
+    /** Campo que pode ficar em branco. Devolve null quando o usuario so aperta enter. */
+    fun textoOpcional(rotulo: String, maximo: Int = 120): String? {
+        while (true) {
+            val valor = ler("$rotulo (enter pra deixar em branco): ")
+            if (valor.isBlank()) {
+                return null
+            } else if (valor.length > maximo) {
+                println("  > No maximo $maximo caracteres.")
+            } else {
+                return valor
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // CAMPOS DO SISTEMA - cada um com a sua regra
+    // ------------------------------------------------------------------
+
+    /** Nome de pessoa fisica: so letra, espaco, apostrofo e hifen. */
+    fun nome(rotulo: String): String {
+        while (true) {
+            val valor = texto(rotulo, 120)
+            if (Validacao.nomeValido(valor)) {
+                return valor
+            }
+            println("  > Nome invalido (so letras e espaco, minimo 3).")
+        }
+    }
+
+    fun nome(rotulo: String, padrao: String): String {
+        while (true) {
+            val valor = texto(rotulo, padrao, 120)
+            if (Validacao.nomeValido(valor)) {
+                return valor
+            }
+            println("  > Nome invalido (so letras e espaco, minimo 3).")
+        }
+    }
+
+    /** Nome de cliente ou fornecedor: aceita numero, ponto, hifen e & (empresa). */
+    fun razaoSocial(rotulo: String): String {
+        while (true) {
+            val valor = texto(rotulo, 120)
+            if (Validacao.razaoSocialValida(valor)) {
+                return valor
+            }
+            println("  > Nome invalido (minimo 3 caracteres).")
+        }
+    }
+
+    fun razaoSocial(rotulo: String, padrao: String): String {
+        while (true) {
+            val valor = texto(rotulo, padrao, 120)
+            if (Validacao.razaoSocialValida(valor)) {
+                return valor
+            }
+            println("  > Nome invalido (minimo 3 caracteres).")
+        }
+    }
+
+    /** CPF. Devolve so os 11 digitos, sem ponto nem traco. */
+    fun cpf(rotulo: String): String {
+        while (true) {
+            val valor = texto(rotulo, 18)
+            if (Validacao.cpfValido(valor)) {
+                return Validacao.somenteDigitos(valor)
+            }
+            println("  > CPF invalido - confere os digitos.")
+        }
+    }
+
+    /** CNPJ. Devolve so os 14 digitos. */
+    fun cnpj(rotulo: String): String {
+        while (true) {
+            val valor = texto(rotulo, 20)
+            if (Validacao.cnpjValido(valor)) {
+                return Validacao.somenteDigitos(valor)
+            }
+            println("  > CNPJ invalido - confere os digitos.")
+        }
+    }
+
+    /** Cliente pode ser pessoa fisica ou juridica, entao aceita CPF ou CNPJ. */
+    fun documento(rotulo: String): String {
+        while (true) {
+            val valor = texto(rotulo, 20)
+            if (Validacao.documentoValido(valor)) {
+                return Validacao.somenteDigitos(valor)
+            }
+            println("  > Documento invalido - confere os digitos.")
+        }
+    }
+
+    /** E-mail e opcional. Se veio preenchido, tem que estar no formato certo. */
+    fun emailOpcional(rotulo: String): String? {
+        while (true) {
+            val valor = textoOpcional(rotulo, 120)
+            if (valor == null) {
+                return null
+            }
+            if (Validacao.emailValido(valor)) {
+                return valor
+            }
+            println("  > E-mail fora do formato nome@dominio.com.")
+        }
+    }
+
+    /** Telefone tambem e opcional. Devolve so os digitos. */
+    fun telefoneOpcional(rotulo: String): String? {
+        while (true) {
+            val valor = textoOpcional(rotulo, 20)
+            if (valor == null) {
+                return null
+            }
+            if (Validacao.telefoneValido(valor)) {
+                return Validacao.somenteDigitos(valor)
+            }
+            println("  > Telefone precisa ter 10 ou 11 numeros.")
+        }
+    }
+
+    /** Competencia da fatura ou da folha, no formato MM/AAAA. */
+    fun competencia(rotulo: String): String {
+        while (true) {
+            val valor = texto(rotulo, 7)
+            if (Validacao.competenciaValida(valor)) {
+                return valor
+            }
+            println("  > Use o formato MM/AAAA, exemplo 09/2026.")
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // NUMEROS E DATAS
+    // ------------------------------------------------------------------
 
     fun inteiro(rotulo: String, minimo: Int = Int.MIN_VALUE, maximo: Int = Int.MAX_VALUE): Int {
         while (true) {
-            val bruto = ler(rotulo)
-            val numero = bruto.toIntOrNull()
-            when {
-                numero == null -> println("  > Digita um numero inteiro.")
-                numero < minimo || numero > maximo -> println("  > Precisa estar entre $minimo e $maximo.")
-                else -> return numero
+            val numero = ler(rotulo).toIntOrNull()
+            if (numero == null) {
+                println("  > Digita um numero inteiro.")
+            } else if (numero < minimo || numero > maximo) {
+                println("  > Precisa estar entre $minimo e $maximo.")
+            } else {
+                return numero
             }
         }
     }
 
-    /**
-     * Aceita 1500,50 / 1500.50 / 1.500,50 / 1500 - o pessoal digita de todo jeito.
-     * A regra e olhar o ultimo separador: se sobrar 1 ou 2 digitos depois dele,
-     * ele e a virgula dos centavos; senao e separador de milhar.
-     */
+    /** Versao pra tela de alteracao: enter vazio mantem o valor atual. */
+    fun inteiro(rotulo: String, padrao: Int, minimo: Int, maximo: Int): Int {
+        while (true) {
+            val bruto = ler("$rotulo [$padrao] (enter mantem): ")
+            if (bruto.isBlank()) {
+                return padrao
+            }
+            val numero = bruto.toIntOrNull()
+            if (numero == null) {
+                println("  > Digita um numero inteiro.")
+            } else if (numero < minimo || numero > maximo) {
+                println("  > Precisa estar entre $minimo e $maximo.")
+            } else {
+                return numero
+            }
+        }
+    }
+
     fun decimal(rotulo: String, minimo: BigDecimal = BigDecimal.ZERO): BigDecimal {
         while (true) {
             val valor = converterValor(ler(rotulo))
-            when {
-                valor == null -> println("  > Valor invalido (exemplo: 129,90).")
-                valor < minimo -> println("  > O valor nao pode ser menor que $minimo.")
-                else -> return valor
+            if (valor == null) {
+                println("  > Valor invalido (exemplo: 129,90).")
+            } else if (valor < minimo) {
+                println("  > O valor nao pode ser menor que $minimo.")
+            } else {
+                return valor
             }
         }
     }
 
     /**
-     * Versao pra tela de alteracao: enter vazio mantem o valor que ja esta la.
-     * Sem isso o operador que so queria arrumar o nome era obrigado a redigitar
-     * o salario, e um dedo torto ali mexia na folha sem ninguem perceber.
+     * Versao pra tela de alteracao. Sem isso o operador que so queria arrumar
+     * o nome era obrigado a redigitar o salario, e um dedo torto ali mexia
+     * na folha sem ninguem perceber.
      */
     fun decimal(rotulo: String, padrao: BigDecimal, minimo: BigDecimal = BigDecimal.ZERO): BigDecimal {
         while (true) {
             val bruto = ler("$rotulo [${Formato.moeda(padrao)}] (enter mantem): ")
-            if (bruto.isBlank()) return padrao
+            if (bruto.isBlank()) {
+                return padrao
+            }
             val valor = converterValor(bruto)
-            when {
-                valor == null -> println("  > Valor invalido (exemplo: 129,90).")
-                valor < minimo -> println("  > O valor nao pode ser menor que $minimo.")
-                else -> return valor
+            if (valor == null) {
+                println("  > Valor invalido (exemplo: 129,90).")
+            } else if (valor < minimo) {
+                println("  > O valor nao pode ser menor que $minimo.")
+            } else {
+                return valor
             }
         }
     }
 
-    /** Mesma ideia do decimal com padrao, so que pra texto. */
-    fun texto(rotulo: String, padrao: String, maximo: Int = 120,
-              validador: ((String) -> Boolean)? = null,
-              mensagemErro: String = "Valor invalido, tenta de novo."): String {
-        while (true) {
-            val valor = ler("$rotulo [$padrao] (enter mantem): ")
-            if (valor.isBlank()) return padrao
-            when {
-                valor.length > maximo -> println("  > No maximo $maximo caracteres.")
-                validador != null && !validador(valor) -> println("  > $mensagemErro")
-                else -> return valor
-            }
-        }
-    }
-
-    fun inteiro(rotulo: String, padrao: Int, minimo: Int, maximo: Int): Int {
-        while (true) {
-            val bruto = ler("$rotulo [$padrao] (enter mantem): ")
-            if (bruto.isBlank()) return padrao
-            val numero = bruto.toIntOrNull()
-            when {
-                numero == null -> println("  > Digita um numero inteiro.")
-                numero < minimo || numero > maximo -> println("  > Precisa estar entre $minimo e $maximo.")
-                else -> return numero
-            }
-        }
-    }
-
-    /** Devolve null quando o texto nao e um valor monetario valido. */
+    /**
+     * Transforma o que foi digitado em valor de dinheiro, ou devolve null se
+     * nao der. A regra e olhar o ultimo separador: se sobrar 1 ou 2 digitos
+     * depois dele, ele e a virgula dos centavos; senao e separador de milhar.
+     */
     fun converterValor(bruto: String): BigDecimal? {
         val texto = bruto.trim().replace(" ", "").replace("R$", "")
-        if (!REGEX_VALOR.matches(texto)) return null
+        if (!REGEX_VALOR.matches(texto)) {
+            return null
+        }
 
         val posicaoSeparador = maxOf(texto.lastIndexOf('.'), texto.lastIndexOf(','))
         val casasDepois = texto.length - posicaoSeparador - 1
 
-        val normalizado = when {
-            posicaoSeparador < 0 -> texto
-            casasDepois in 1..2 ->
-                texto.substring(0, posicaoSeparador).filter { it.isDigit() } + "." + texto.substring(posicaoSeparador + 1)
-            else -> texto.filter { it.isDigit() }
+        val normalizado: String
+        if (posicaoSeparador < 0) {
+            normalizado = texto
+        } else if (casasDepois == 1 || casasDepois == 2) {
+            val parteInteira = texto.substring(0, posicaoSeparador).filter { it.isDigit() }
+            val centavos = texto.substring(posicaoSeparador + 1)
+            normalizado = "$parteInteira.$centavos"
+        } else {
+            normalizado = texto.filter { it.isDigit() }
         }
 
-        return try {
-            BigDecimal(normalizado).setScale(2, java.math.RoundingMode.HALF_UP)
+        try {
+            return BigDecimal(normalizado).setScale(2, java.math.RoundingMode.HALF_UP)
         } catch (e: NumberFormatException) {
-            null
+            return null
         }
     }
 
@@ -161,7 +317,9 @@ object Entrada {
         while (true) {
             val sufixo = if (padrao != null) " [enter = ${Formato.data(padrao)}]: " else " (dd/mm/aaaa): "
             val bruto = ler(rotulo + sufixo)
-            if (bruto.isBlank() && padrao != null) return padrao
+            if (bruto.isBlank() && padrao != null) {
+                return padrao
+            }
             try {
                 return LocalDate.parse(bruto, FORMATO_DATA)
             } catch (e: Exception) {
@@ -170,14 +328,21 @@ object Entrada {
         }
     }
 
+    // ------------------------------------------------------------------
+    // MENU
+    // ------------------------------------------------------------------
+
     fun opcao(minimo: Int, maximo: Int): Int = inteiro("Opcao: ", minimo, maximo)
 
     fun confirmar(pergunta: String): Boolean {
         while (true) {
-            when (ler("$pergunta (s/n): ").lowercase()) {
-                "s", "sim" -> return true
-                "n", "nao", "não" -> return false
-                else -> println("  > Responde com s ou n.")
+            val resposta = ler("$pergunta (s/n): ").lowercase()
+            if (resposta == "s" || resposta == "sim") {
+                return true
+            } else if (resposta == "n" || resposta == "nao" || resposta == "não") {
+                return false
+            } else {
+                println("  > Responde com s ou n.")
             }
         }
     }

@@ -23,14 +23,14 @@ import java.time.LocalDateTime
  * Fluxo do servico vendido pelo provedor: contrato do plano, faturas do mes
  * e recebimento. Toda parte de dinheiro passa pelo Caixa.
  */
-class ServicoContrato(
-    private val contratoDao: ContratoDao = ContratoDao(),
-    private val faturaDao: FaturaDao = FaturaDao(),
-    private val planoDao: PlanoDao = PlanoDao(),
-    private val clienteDao: ClienteDao = ClienteDao(),
-    private val funcionarioDao: FuncionarioDao = FuncionarioDao(),
-    private val ordemDao: OrdemServicoDao = OrdemServicoDao()
-) {
+class ServicoContrato {
+
+    private val contratoDao = ContratoDao()
+    private val faturaDao = FaturaDao()
+    private val planoDao = PlanoDao()
+    private val clienteDao = ClienteDao()
+    private val funcionarioDao = FuncionarioDao()
+    private val ordemDao = OrdemServicoDao()
 
     /**
      * Fecha o contrato do cliente. Se o plano tiver taxa de instalacao e o
@@ -72,7 +72,7 @@ class ServicoContrato(
             throw RegraDeNegocioException("Esse cliente ja tem um contrato ativo nesse mesmo plano.")
         }
 
-        return Transacao.executar {
+        val resultado = Transacao.executar {
             val novo = Contrato(
                 clienteId = cliente.id,
                 planoId = plano.id,
@@ -110,7 +110,11 @@ class ServicoContrato(
                 planoNome = plano.nome,
                 valorMensal = plano.valorMensal
             )
-        }.also { Caixa.sincronizar() }
+        }
+
+        // a transacao fechou, entao agora da pra reler o saldo
+        Caixa.sincronizar()
+        return resultado
     }
 
     /**
@@ -156,7 +160,7 @@ class ServicoContrato(
         val cliente = clienteDao.buscarPorId(contrato.clienteId)
             ?: throw RegraDeNegocioException("Cliente do contrato nao encontrado.")
 
-        return Transacao.executar {
+        val resultado = Transacao.executar {
             val agora = LocalDateTime.now()
             if (!faturaDao.marcarComoPaga(fatura.id, agora)) {
                 throw RegraDeNegocioException("Nao consegui baixar a fatura, tente de novo.")
@@ -170,7 +174,11 @@ class ServicoContrato(
                 responsavel = responsavel
             )
             fatura.copy(status = StatusFatura.PAGA, dataPagamento = agora)
-        }.also { Caixa.sincronizar() }
+        }
+
+        // a transacao fechou, entao agora da pra reler o saldo
+        Caixa.sincronizar()
+        return resultado
     }
 
     /** Cancela o contrato e as faturas que ainda estavam em aberto. */

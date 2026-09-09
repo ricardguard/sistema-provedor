@@ -86,7 +86,7 @@ object MenuComercial {
 
     private fun cadastrarPlano() {
         Formato.titulo("Novo plano")
-        val nome = Entrada.texto("Nome do plano: ", 60, { it.length >= 3 })
+        val nome = Entrada.texto("Nome do plano: ", 60, 3)
         if (planoDao.listar().any { it.nome.equals(nome, ignoreCase = true) }) {
             throw RegraDeNegocioException("Ja existe um plano com esse nome.")
         }
@@ -109,7 +109,7 @@ object MenuComercial {
         if (id == 0) return
         val plano = planoDao.buscarPorId(id) ?: throw RegraDeNegocioException("Plano nao encontrado.")
 
-        val nome = Entrada.texto("Nome", plano.nome, 60, { it.length >= 3 })
+        val nome = Entrada.texto("Nome", plano.nome, 60, 3)
         val velocidade = Entrada.inteiro("Velocidade em mega", plano.velocidadeMega, 1, 10000)
         val mensalidade = Entrada.decimal("Mensalidade", plano.valorMensal, BigDecimal("1.00"))
         val instalacao = Entrada.decimal("Taxa de instalacao", plano.taxaInstalacao)
@@ -252,7 +252,7 @@ object MenuComercial {
     }
 
     private fun contratosDoCliente() {
-        val termo = Entrada.texto("Nome ou documento do cliente: ", 120, { it.length >= 2 })
+        val termo = Entrada.texto("Nome ou documento do cliente: ", 120, 2)
         val encontrados = clienteDao.buscarPorNomeOuDocumento(termo)
         if (encontrados.isEmpty()) throw RegraDeNegocioException("Nenhum cliente com esse termo.")
 
@@ -299,10 +299,7 @@ object MenuComercial {
         Formato.titulo("Gerar faturas")
         println("  Competencia sugerida: $sugestao")
 
-        val competencia = Entrada.texto(
-            "Competencia (MM/AAAA): ", 7,
-            { Validacao.competenciaValida(it) }, "Use o formato MM/AAAA, exemplo 09/2026."
-        )
+        val competencia = Entrada.competencia("Competencia (MM/AAAA): ")
         val quantas = servicoContrato.gerarFaturasDaCompetencia(competencia)
         println(
             if (quantas == 0) "\n  Nenhuma fatura nova - todos os contratos ativos ja tinham a de $competencia."
