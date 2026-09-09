@@ -35,7 +35,7 @@ fun main() {
         Sessao.identificar()
         MenuPrincipal.exibir()
 
-    } catch (fim: EntradaEncerradaException) {
+    } catch (_: EntradaEncerradaException) {
         println("\n\nEntrada encerrada, fechando o sistema.")
     } catch (e: Exception) {
         println("\n[ERRO] ${e.message}")
@@ -46,8 +46,9 @@ fun main() {
 }
 
 /**
- * Na primeira execucao o banco esta vazio e nao tem ninguem pra logar,
- * entao cadastro aqui o primeiro funcionario (o dono/administrador).
+ * Na primeira execucao o banco esta vazio e nao existe ninguem para
+ * entrar no sistema, entao cadastro aqui o primeiro funcionario
+ * (o dono ou administrador).
  */
 private fun primeiroAcesso() {
     val funcionarioDao = FuncionarioDao()
@@ -56,9 +57,9 @@ private fun primeiroAcesso() {
     val setorDao = SetorDao()
     val setores = setorDao.listar()
     if (setores.isEmpty()) {
-        // O schema.sql ja cria quatro setores. Se chegou aqui vazio e porque
-        // alguem apagou tudo direto no banco - melhor avisar do que ficar
-        // pedindo um codigo que nunca vai existir.
+        // O schema.sql ja cria quatro setores. Se chegou aqui vazio, alguem
+        // apagou tudo direto no banco - melhor avisar do que ficar pedindo
+        // um codigo que nunca vai existir.
         throw IllegalStateException(
             "Nao ha nenhum setor cadastrado. Rode o schema.sql de novo ou insira um setor no banco."
         )

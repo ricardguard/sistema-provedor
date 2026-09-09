@@ -39,7 +39,7 @@ object Transacao {
             Conexao.transacaoAberta = false
             try {
                 conexao.autoCommit = true
-            } catch (e: SQLException) {
+            } catch (_: SQLException) {
                 // conexao ja morreu; a proxima chamada abre outra
             }
         }
