@@ -32,7 +32,7 @@ object Sessao {
 
         Formato.titulo("Identificacao do operador")
         ativos.forEach { f ->
-            println("  [${f.id}] ${Formato.encurtar(f.nome, 28)} ${Formato.encurtar(f.cargo, 20)} ${f.setorNome}")
+            println("  [${f.id}] ${Formato.encurtar(f.nome, 50)} ${Formato.encurtar(f.cargo, 20)} ${f.setorNome}")
         }
         println(Formato.linha())
 
