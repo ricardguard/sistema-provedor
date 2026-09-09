@@ -109,9 +109,12 @@ object MenuComercial {
         val plano = planoDao.buscarPorId(id) ?: throw RegraDeNegocioException("Plano nao encontrado.")
 
         val nome = Entrada.texto("Nome", plano.nome, 60, 3)
+        val repetido = planoDao.listar().any { it.id != plano.id && it.nome.equals(nome, ignoreCase = true) }
+        if (repetido) throw RegraDeNegocioException("Ja existe outro plano com esse nome.")
+
         val velocidade = Entrada.inteiro("Velocidade em mega", plano.velocidadeMega, 1, 10000)
-        val mensalidade = Entrada.decimal("Mensalidade", plano.valorMensal, BigDecimal("1.00"))
-        val instalacao = Entrada.decimal("Taxa de instalacao", plano.taxaInstalacao)
+        val mensalidade = Entrada.decimalOuManter("Mensalidade", plano.valorMensal, BigDecimal("1.00"))
+        val instalacao = Entrada.decimalOuManter("Taxa de instalacao", plano.taxaInstalacao)
 
         val ok = planoDao.atualizar(
             plano.copy(
@@ -223,7 +226,13 @@ object MenuComercial {
 
         println("\n  Contrato ${contrato.id} fechado pro cliente ${contrato.clienteNome}.")
         println("  Abri tambem a OS de instalacao pro pessoal do suporte.")
-        if (cobrarInstalacao) println("  Taxa de instalacao lancada no caixa.")
+        if (plano.taxaInstalacao > BigDecimal.ZERO) {
+            if (cobrarInstalacao) {
+                println("  Taxa de instalacao lancada no caixa.")
+            } else {
+                println("  Taxa de instalacao gerou fatura em aberto - cobre no menu de faturas.")
+            }
+        }
     }
 
     private fun suspenderReativar() {

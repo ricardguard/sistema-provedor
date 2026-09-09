@@ -32,10 +32,11 @@ object MenuFinanceiro {
             println("  5 - Ultimas movimentacoes")
             println("  6 - Extrato por periodo")
             println("  7 - Resumo do periodo (entradas x saidas)")
+            println("  8 - Folha ja paga de uma competencia")
             println("  0 - Voltar")
             println(Formato.linha())
 
-            when (Entrada.opcao(0, 7)) {
+            when (Entrada.opcao(0, 8)) {
                 1 -> protegido { pagarSalario() }
                 2 -> protegido { pagarFolhaDoSetor() }
                 3 -> protegido { pagarDespesa() }
@@ -43,6 +44,7 @@ object MenuFinanceiro {
                 5 -> protegido { ultimasMovimentacoes() }
                 6 -> protegido { extratoPorPeriodo() }
                 7 -> protegido { resumoDoPeriodo() }
+                8 -> protegido { folhaPaga() }
                 0 -> return
             }
         }
@@ -100,6 +102,24 @@ object MenuFinanceiro {
         // uma movimentacao propria, mas ou entram todas ou nao entra nenhuma.
         val lancamentos = servicoFinanceiro.pagarFolhaDoSetor(setorId, competencia, Sessao.logado)
         println("\n  ${lancamentos.size} salario(s) pagos. Saldo em caixa: ${Formato.moeda(Caixa.saldoAtual)}")
+    }
+
+    /** Quem ja recebeu numa competencia - serve pra conferir a folha do mes. */
+    private fun folhaPaga() {
+        Formato.titulo("Folha ja paga")
+        val competencia = Entrada.competencia("Competencia (MM/AAAA): ")
+        val pagamentos = servicoFinanceiro.folhaDaCompetencia(competencia)
+        if (pagamentos.isEmpty()) {
+            println("\n  Nenhum salario pago em $competencia.")
+            return
+        }
+        var total = BigDecimal.ZERO
+        for (pagamento in pagamentos) {
+            total = total.add(pagamento.valor)
+            println("  ${Formato.encurtar(pagamento.funcionarioNome, 30)} " +
+                    "${Formato.moeda(pagamento.valor)}  em ${Formato.dataHora(pagamento.dataPagamento)}")
+        }
+        println("\n  ${pagamentos.size} pagamento(s) - total de ${Formato.moeda(total)}")
     }
 
     private fun pagarDespesa() {

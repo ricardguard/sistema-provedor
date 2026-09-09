@@ -62,6 +62,24 @@ class OrdemServicoDao {
         }
     }
 
+    /**
+     * Define o tecnico e o valor da OS. Precisa existir porque a OS de
+     * instalacao e aberta automaticamente quando o contrato e fechado, sem
+     * tecnico e com valor zero - sem esta tela ela ficava assim pra sempre.
+     */
+    fun atualizarTecnicoEValor(id: Int, tecnicoId: Int?, valor: java.math.BigDecimal): Boolean {
+        val sql = """
+            UPDATE ordem_servico SET tecnico_id = ?, valor = ?
+             WHERE id = ? AND status = 'ABERTA'
+        """.trimIndent()
+        Conexao.get().prepareStatement(sql).use { ps ->
+            if (tecnicoId == null) ps.setNull(1, Types.INTEGER) else ps.setInt(1, tecnicoId)
+            ps.setBigDecimal(2, valor)
+            ps.setInt(3, id)
+            return ps.executeUpdate() > 0
+        }
+    }
+
     fun encerrar(id: Int, quando: LocalDateTime): Boolean {
         val sql = """
             UPDATE ordem_servico SET status = 'ENCERRADA', encerramento = ?

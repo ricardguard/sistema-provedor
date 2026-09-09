@@ -69,7 +69,7 @@ class ServicoEstoque {
                 categoria = "COMPRA_MATERIAL",
                 pagador = Empresa,
                 recebedor = fornecedor,
-                descricao = "Compra de $quantidade ${produto.unidade} de ${produto.descricao}",
+                descricao = "Compra $id - $quantidade ${produto.unidade} de ${produto.descricao}",
                 responsavel = responsavel
             )
 
@@ -132,7 +132,7 @@ class ServicoEstoque {
                 categoria = "VENDA_PRODUTO",
                 pagador = cliente,
                 recebedor = Empresa,
-                descricao = "Venda de $quantidade ${produto.unidade} de ${produto.descricao}",
+                descricao = "Venda $id - $quantidade ${produto.unidade} de ${produto.descricao}",
                 responsavel = responsavel
             )
 
@@ -175,7 +175,10 @@ class ServicoEstoque {
         if (diferenca == 0) throw RegraDeNegocioException("A contagem bateu com o sistema, nao ha o que ajustar.")
 
         return Transacao.executar {
-            if (!produtoDao.movimentarEstoque(produto.id, diferenca)) {
+            // Gravo a contagem, nao a diferenca. Se eu somasse o delta e o
+            // estoque tivesse mudado no meio, o produto terminaria num numero
+            // diferente do que o historico de ajuste afirma.
+            if (!produtoDao.definirEstoque(produto.id, quantidadeContada)) {
                 throw RegraDeNegocioException("Nao consegui ajustar o estoque de ${produto.descricao}.")
             }
             val ajuste = AjusteEstoque(

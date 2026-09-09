@@ -1,5 +1,7 @@
 package br.com.provedor.modelo
 
+import br.com.provedor.util.Formato
+
 /**
  * Contrato comum de quem pode aparecer numa movimentacao do caixa.
  *
@@ -24,11 +26,18 @@ interface Pessoa {
     fun tipoDePessoa(): String
 
     /**
-     * Implementacao padrao da interface. Quem quiser pode sobrescrever,
-     * mas nenhuma precisa reescrever isso.
+     * Implementacao padrao da interface: monta a identificacao completa a
+     * partir do que cada tipo respondeu. Quem quiser pode sobrescrever, mas
+     * nenhuma implementacao precisa reescrever isso.
+     *
+     * Terceiro nao tem documento, entao sai so o nome e o tipo.
      */
-    fun identificacao(): String =
-        if (documento.isBlank()) "$nome (${tipoDePessoa()})" else "$nome (${tipoDePessoa()})"
+    fun identificacao(): String {
+        if (documento.isBlank()) {
+            return "$nome (${tipoDePessoa()})"
+        }
+        return "$nome (${tipoDePessoa()} - ${Formato.documento(documento)})"
+    }
 }
 
 /**

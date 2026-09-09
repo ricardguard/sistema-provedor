@@ -15,6 +15,7 @@ import br.com.provedor.modelo.StatusContrato
 import br.com.provedor.modelo.StatusFatura
 import br.com.provedor.modelo.TipoOrdem
 import br.com.provedor.util.Empresa
+import br.com.provedor.util.Validacao
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -93,15 +94,29 @@ class ServicoContrato {
                 )
             )
 
-            if (cobrarInstalacaoAgora && plano.taxaInstalacao > BigDecimal.ZERO) {
-                Caixa.registrarEntrada(
-                    valor = plano.taxaInstalacao,
-                    categoria = "TAXA_INSTALACAO",
-                    pagador = cliente,
-                    recebedor = Empresa,
-                    descricao = "Taxa de instalacao do contrato $id - plano ${plano.nome}",
-                    responsavel = responsavel
-                )
+            if (plano.taxaInstalacao > BigDecimal.ZERO) {
+                if (cobrarInstalacaoAgora) {
+                    Caixa.registrarEntrada(
+                        valor = plano.taxaInstalacao,
+                        categoria = "TAXA_INSTALACAO",
+                        pagador = cliente,
+                        recebedor = Empresa,
+                        descricao = "Taxa de instalacao do contrato $id - plano ${plano.nome}",
+                        responsavel = responsavel
+                    )
+                } else {
+                    // Se o cliente nao paga agora, a taxa vira fatura em aberto.
+                    // Antes ela simplesmente sumia: a empresa nunca ficava
+                    // sabendo que aquele cliente ainda devia a instalacao.
+                    faturaDao.inserir(
+                        Fatura(
+                            contratoId = id,
+                            competencia = competenciaDe(LocalDate.now()),
+                            valor = plano.taxaInstalacao,
+                            vencimento = proximoVencimento(diaVencimento)
+                        )
+                    )
+                }
             }
 
             novo.copy(
@@ -122,6 +137,11 @@ class ServicoContrato {
      * Se a competencia ja foi gerada antes, pula (o banco tambem barra pela UNIQUE).
      */
     fun gerarFaturasDaCompetencia(competencia: String): Int {
+        // Valido aqui e nao so no menu: se um dia outra tela chamar este
+        // metodo, um "092026" quebraria no split com um erro sem sentido.
+        if (!Validacao.competenciaValida(competencia)) {
+            throw RegraDeNegocioException("Competencia invalida, use MM/AAAA.")
+        }
         val partes = competencia.split("/")
         val mes = partes[0].toInt()
         val ano = partes[1].toInt()
@@ -143,6 +163,17 @@ class ServicoContrato {
             }
         }
         return geradas
+    }
+
+    /** Data como MM/AAAA, do jeito que a competencia e guardada. */
+    private fun competenciaDe(data: LocalDate): String =
+        String.format("%02d/%d", data.monthValue, data.year)
+
+    /** Proximo vencimento a partir de hoje, respeitando o dia do contrato. */
+    private fun proximoVencimento(diaVencimento: Int): LocalDate {
+        val hoje = LocalDate.now()
+        val esteMes = LocalDate.of(hoje.year, hoje.monthValue, diaVencimento)
+        return if (esteMes.isBefore(hoje)) esteMes.plusMonths(1) else esteMes
     }
 
     /** Cliente pagou a mensalidade: baixa a fatura e entra dinheiro no caixa. */
@@ -212,6 +243,12 @@ class ServicoContrato {
     }
 
     fun suspenderOuReativar(contratoId: Int, novoStatus: StatusContrato): Contrato {
+        // So aceito os dois status que essa operacao existe pra alternar.
+        // Cancelamento tem regra propria (cancela as faturas, grava a data),
+        // entao nao pode entrar por aqui.
+        if (novoStatus != StatusContrato.ATIVO && novoStatus != StatusContrato.SUSPENSO) {
+            throw RegraDeNegocioException("Use o cancelamento de contrato para cancelar.")
+        }
         val contrato = contratoDao.buscarPorId(contratoId)
             ?: throw RegraDeNegocioException("Contrato nao encontrado.")
         if (contrato.status == StatusContrato.CANCELADO) {

@@ -96,6 +96,21 @@ class ProdutoDao {
         }
     }
 
+    /**
+     * Grava a quantidade contada, e nao uma diferenca. E o certo pro ajuste
+     * de inventario: a contagem fisica diz quanto TEM, entao o estoque tem
+     * que terminar exatamente nesse numero.
+     */
+    fun definirEstoque(produtoId: Int, quantidade: Int): Boolean {
+        val sql = "UPDATE produto SET quantidade_estoque = ? WHERE id = ? AND ? >= 0"
+        Conexao.get().prepareStatement(sql).use { ps ->
+            ps.setInt(1, quantidade)
+            ps.setInt(2, produtoId)
+            ps.setInt(3, quantidade)
+            return ps.executeUpdate() > 0
+        }
+    }
+
     fun atualizarPrecoCusto(produtoId: Int, custo: java.math.BigDecimal): Boolean {
         Conexao.get().prepareStatement("UPDATE produto SET preco_custo = ? WHERE id = ?").use { ps ->
             ps.setBigDecimal(1, custo)

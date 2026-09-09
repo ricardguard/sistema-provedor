@@ -36,6 +36,9 @@ class ServicoOrdem {
 
         val cliente = clienteDao.buscarPorId(clienteId)
             ?: throw RegraDeNegocioException("Cliente nao encontrado.")
+        // Mesma regra do contrato e da venda: cliente inativo nao gera
+        // atendimento novo. Antes so esta tela deixava passar.
+        if (!cliente.ativo) throw RegraDeNegocioException("Cliente inativo, reative o cadastro antes.")
         if (descricao.isBlank()) throw RegraDeNegocioException("Descreva o que precisa ser feito.")
         if (valor < BigDecimal.ZERO) throw RegraDeNegocioException("Valor da OS nao pode ser negativo.")
 
@@ -55,6 +58,33 @@ class ServicoOrdem {
         )
         val id = ordemDao.inserir(ordem)
         return ordem.copy(id = id)
+    }
+
+    /**
+     * Define quem vai atender e quanto custa a mao de obra. Serve pra
+     * completar a OS de instalacao que o sistema abre sozinha no fechamento
+     * do contrato, que nasce sem tecnico e sem valor.
+     */
+    fun atribuir(ordemId: Int, tecnicoId: Int?, valor: BigDecimal): OrdemServico {
+        val ordem = ordemDao.buscarPorId(ordemId)
+            ?: throw RegraDeNegocioException("OS nao encontrada.")
+        if (ordem.status != StatusOrdem.ABERTA) {
+            throw RegraDeNegocioException("So da pra mexer em OS que esta aberta.")
+        }
+        if (valor < BigDecimal.ZERO) throw RegraDeNegocioException("Valor da OS nao pode ser negativo.")
+
+        var tecnicoNome: String? = null
+        if (tecnicoId != null) {
+            val tecnico = funcionarioDao.buscarPorId(tecnicoId)
+                ?: throw RegraDeNegocioException("Tecnico nao encontrado.")
+            if (!tecnico.ativo) throw RegraDeNegocioException("Esse funcionario esta desligado.")
+            tecnicoNome = tecnico.nome
+        }
+
+        if (!ordemDao.atualizarTecnicoEValor(ordem.id, tecnicoId, valor)) {
+            throw RegraDeNegocioException("Nao consegui atualizar a OS ${ordem.id}.")
+        }
+        return ordem.copy(tecnicoId = tecnicoId, tecnicoNome = tecnicoNome, valor = valor)
     }
 
     /** Material usado na OS: registra o item e ja baixa do estoque. */

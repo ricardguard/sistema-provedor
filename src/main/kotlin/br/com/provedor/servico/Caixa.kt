@@ -81,6 +81,11 @@ object Caixa {
         if (descricao.isBlank()) {
             throw RegraDeNegocioException("Toda movimentacao precisa de um motivo/descricao.")
         }
+        if (categoria.isBlank()) {
+            // A coluna e NOT NULL no banco, mas o erro de la e cru. Melhor
+            // barrar aqui - era a unica coluna obrigatoria sem guarda.
+            throw RegraDeNegocioException("Toda movimentacao precisa de uma categoria.")
+        }
         if (pagador.nome.isBlank() || recebedor.nome.isBlank()) {
             throw RegraDeNegocioException("Informe quem pagou e quem recebeu.")
         }

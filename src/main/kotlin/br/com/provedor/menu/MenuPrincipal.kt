@@ -66,7 +66,7 @@ object MenuPrincipal {
             println("  1 - Panorama da empresa")
             println("  2 - Funcionarios por setor")
             println("  3 - Inadimplencia (faturas vencidas)")
-            println("  4 - Estoque abaixo do minimo")
+            println("  4 - Estoque no limite ou abaixo do minimo")
             println("  0 - Voltar")
             println(Formato.linha())
 
@@ -111,12 +111,18 @@ object MenuPrincipal {
         }
         setores.forEach { setor ->
             val equipe = funcionarioDao.listarPorSetor(setor.id).filter { it.ativo }
+            // Somo o que sai do caixa de fato (o liquido de cada regime), e nao
+            // o salario cadastrado. Antes esta tela e a do financeiro mostravam
+            // numeros diferentes pra mesma folha.
             var folha = BigDecimal.ZERO
             for (funcionario in equipe) {
-                folha = folha.add(funcionario.salario)
+                folha = folha.add(funcionario.valorDoPagamento)
             }
-            println("\n  ${setor.nome} - ${equipe.size} pessoa(s) - folha ${Formato.moeda(folha)}")
-            equipe.forEach { println("    - ${Formato.encurtar(it.nome, 28)} ${it.cargo}") }
+            println("\n  ${setor.nome} - ${equipe.size} pessoa(s) - folha ${Formato.moeda(folha)} a pagar")
+            equipe.forEach {
+                println("    - ${Formato.encurtar(it.nome, 28)} ${Formato.encurtar(it.cargo, 20)} " +
+                        "${it.contratacao.rotulo} ${Formato.moeda(it.valorDoPagamento)}")
+            }
             if (equipe.isEmpty()) println("    (sem funcionario ativo)")
         }
     }
@@ -141,7 +147,7 @@ object MenuPrincipal {
 
     private fun estoqueBaixo() {
         val produtos = produtoDao.listarAbaixoDoMinimo()
-        Formato.titulo("Estoque abaixo do minimo")
+        Formato.titulo("Estoque no limite ou abaixo do minimo")
         if (produtos.isEmpty()) {
             println("  Estoque tranquilo, nada abaixo do minimo.")
             return

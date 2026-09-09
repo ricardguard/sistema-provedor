@@ -26,22 +26,24 @@ object MenuOrdens {
             Formato.titulo("Ordens de servico")
             println("  1 - OS em aberto")
             println("  2 - Abrir OS")
-            println("  3 - Lancar material usado")
-            println("  4 - Encerrar OS")
-            println("  5 - Cancelar OS")
-            println("  6 - Detalhe da OS")
-            println("  7 - OS por tecnico")
+            println("  3 - Definir tecnico e valor")
+            println("  4 - Lancar material usado")
+            println("  5 - Encerrar OS")
+            println("  6 - Cancelar OS")
+            println("  7 - Detalhe da OS")
+            println("  8 - OS por tecnico")
             println("  0 - Voltar")
             println(Formato.linha())
 
-            when (Entrada.opcao(0, 7)) {
+            when (Entrada.opcao(0, 8)) {
                 1 -> protegido { listar(ordemDao.listar(apenasAbertas = true), "OS em aberto") }
                 2 -> protegido { abrir() }
-                3 -> protegido { lancarMaterial() }
-                4 -> protegido { encerrar() }
-                5 -> protegido { cancelar() }
-                6 -> protegido { detalhe() }
-                7 -> protegido { porTecnico() }
+                3 -> protegido { atribuir() }
+                4 -> protegido { lancarMaterial() }
+                5 -> protegido { encerrar() }
+                6 -> protegido { cancelar() }
+                7 -> protegido { detalhe() }
+                8 -> protegido { porTecnico() }
                 0 -> return
             }
         }
@@ -91,6 +93,32 @@ object MenuOrdens {
             tecnicoId = if (tecnicoId == 0) null else tecnicoId
         )
         println("\n  OS ${ordem.id} aberta.")
+    }
+
+    /**
+     * A OS de instalacao e criada sozinha quando o contrato e fechado, sem
+     * tecnico e com valor zero. Sem esta tela ela ficava assim pra sempre e
+     * nunca aparecia no relatorio "OS por tecnico".
+     */
+    private fun atribuir() {
+        listar(ordemDao.listar(apenasAbertas = true), "OS em aberto")
+        val ordemId = Entrada.inteiro("Codigo da OS (0 cancela): ", 0)
+        if (ordemId == 0) return
+
+        val ordem = ordemDao.buscarPorId(ordemId) ?: throw RegraDeNegocioException("OS nao encontrada.")
+        println("\n  Cliente: ${ordem.clienteNome}")
+        println("  Servico: ${ordem.descricao}")
+        println("  Tecnico atual: ${ordem.tecnicoNome ?: "nao definido"}")
+
+        val tecnicos = funcionarioDao.listar(somenteAtivos = true)
+        println()
+        tecnicos.forEach { println("   [${it.id}] ${Formato.encurtar(it.nome, 26)} ${it.setorNome}") }
+        val tecnicoId = Entrada.inteiro("Tecnico (0 = sem tecnico)", ordem.tecnicoId ?: 0, 0, Int.MAX_VALUE)
+        val valor = Entrada.decimalOuManter("Valor da mao de obra", ordem.valor)
+
+        val atualizada = servicoOrdem.atribuir(ordem.id, if (tecnicoId == 0) null else tecnicoId, valor)
+        println("\n  OS ${atualizada.id} atualizada.")
+        println("  Tecnico: ${atualizada.tecnicoNome ?: "nao definido"} | Valor: ${Formato.moeda(atualizada.valor)}")
     }
 
     private fun lancarMaterial() {

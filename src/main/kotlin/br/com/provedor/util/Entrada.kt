@@ -36,6 +36,11 @@ object Entrada {
         "^\\d+$|^\\d+[.,]\\d{1,2}$|^\\d{1,3}(\\.\\d{3})+(,\\d{1,2})?$"
     )
 
+    // As colunas de dinheiro sao NUMERIC(10,2), entao nao cabe mais que isso.
+    // Sem esse teto o banco recusava com "numeric field overflow", um erro
+    // cru que nao ajuda em nada quem esta digitando.
+    private val VALOR_MAXIMO = BigDecimal("99999999.99")
+
     private fun ler(rotulo: String): String {
         print(rotulo)
         // readlnOrNull devolve null quando a entrada acaba - por isso o nullable.
@@ -84,6 +89,30 @@ object Entrada {
         while (true) {
             val valor = ler("$rotulo (enter pra deixar em branco): ")
             if (valor.isBlank()) {
+                return null
+            } else if (valor.length > maximo) {
+                println("  > No maximo $maximo caracteres.")
+            } else {
+                return valor
+            }
+        }
+    }
+
+    /**
+     * Campo opcional na tela de ALTERACAO. Aqui o enter nao pode significar
+     * "deixe em branco", senao nunca daria pra manter o valor que ja esta la;
+     * mas tambem precisa existir um jeito de apagar. Entao: enter mantem,
+     * hifen apaga.
+     *
+     * Devolve o texto novo, ou null quando o operador pediu pra apagar.
+     */
+    fun opcionalOuManter(rotulo: String, atual: String?, maximo: Int = 120): String? {
+        val mostra = atual ?: "vazio"
+        while (true) {
+            val valor = ler("$rotulo [$mostra] (enter mantem, - apaga): ")
+            if (valor.isBlank()) {
+                return atual
+            } else if (valor == "-") {
                 return null
             } else if (valor.length > maximo) {
                 println("  > No maximo $maximo caracteres.")
@@ -200,6 +229,31 @@ object Entrada {
         }
     }
 
+    /** E-mail numa tela de alteracao: enter mantem, hifen apaga. */
+    fun emailOuManter(rotulo: String, atual: String?): String? {
+        while (true) {
+            val valor = opcionalOuManter(rotulo, atual, 120)
+            if (valor == null || valor == atual || Validacao.emailValido(valor)) {
+                return valor
+            }
+            println("  > E-mail fora do formato nome@dominio.com.")
+        }
+    }
+
+    /** Telefone numa tela de alteracao: enter mantem, hifen apaga. */
+    fun telefoneOuManter(rotulo: String, atual: String?): String? {
+        while (true) {
+            val valor = opcionalOuManter(rotulo, atual, 20)
+            if (valor == null || valor == atual) {
+                return valor
+            }
+            if (Validacao.telefoneValido(valor)) {
+                return Validacao.somenteDigitos(valor)
+            }
+            println("  > Telefone precisa ter 10 ou 11 numeros.")
+        }
+    }
+
     /** Competencia da fatura ou da folha, no formato MM/AAAA. */
     fun competencia(rotulo: String): String {
         while (true) {
@@ -253,6 +307,8 @@ object Entrada {
                 println("  > Valor invalido (exemplo: 129,90).")
             } else if (valor < minimo) {
                 println("  > O valor nao pode ser menor que $minimo.")
+            } else if (valor > VALOR_MAXIMO) {
+                println("  > O valor nao pode passar de ${Formato.moeda(VALOR_MAXIMO)}.")
             } else {
                 return valor
             }
@@ -260,11 +316,14 @@ object Entrada {
     }
 
     /**
-     * Versao pra tela de alteracao. Sem isso o operador que so queria arrumar
-     * o nome era obrigado a redigitar o salario, e um dedo torto ali mexia
-     * na folha sem ninguem perceber.
+     * Versao pra tela de alteracao: enter vazio mantem o valor atual.
+     *
+     * Tem nome proprio de proposito. Quando ela se chamava "decimal" igual a
+     * de cima, uma chamada com dois argumentos batia na outra sobrecarga e o
+     * valor atual virava o MINIMO aceito - dava pra aumentar o preco de um
+     * produto, mas nunca baixar.
      */
-    fun decimal(rotulo: String, padrao: BigDecimal, minimo: BigDecimal = BigDecimal.ZERO): BigDecimal {
+    fun decimalOuManter(rotulo: String, padrao: BigDecimal, minimo: BigDecimal = BigDecimal.ZERO): BigDecimal {
         while (true) {
             val bruto = ler("$rotulo [${Formato.moeda(padrao)}] (enter mantem): ")
             if (bruto.isBlank()) {
@@ -275,6 +334,8 @@ object Entrada {
                 println("  > Valor invalido (exemplo: 129,90).")
             } else if (valor < minimo) {
                 println("  > O valor nao pode ser menor que $minimo.")
+            } else if (valor > VALOR_MAXIMO) {
+                println("  > O valor nao pode passar de ${Formato.moeda(VALOR_MAXIMO)}.")
             } else {
                 return valor
             }

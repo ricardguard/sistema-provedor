@@ -94,8 +94,11 @@ object MenuCadastros {
         listarSetores()
         val setor = selecionarSetor() ?: return
         val nome = Entrada.texto("Nome do setor", setor.nome, 60, 3)
-        val descricao = Entrada.textoOpcional("Nova descricao", 200)
-        val ok = setorDao.atualizar(setor.copy(nome = nome, descricao = descricao ?: setor.descricao))
+        val repetido = setorDao.listar().any { it.id != setor.id && it.nome.equals(nome, ignoreCase = true) }
+        if (repetido) throw RegraDeNegocioException("Ja existe outro setor com esse nome.")
+
+        val descricao = Entrada.opcionalOuManter("Descricao", setor.descricao, 200)
+        val ok = setorDao.atualizar(setor.copy(nome = nome, descricao = descricao))
         println(if (ok) "\n  Setor atualizado." else "\n  Nada foi alterado, confere o codigo.")
     }
 
@@ -222,12 +225,12 @@ object MenuCadastros {
             ?: throw RegraDeNegocioException("Funcionario nao encontrado.")
 
         val nome = Entrada.nome("Nome", func.nome)
-        val email = Entrada.emailOpcional("E-mail")
-        val telefone = Entrada.telefoneOpcional("Telefone")
+        val email = Entrada.emailOuManter("E-mail", func.email)
+        val telefone = Entrada.telefoneOuManter("Telefone", func.telefone)
         val cargo = Entrada.texto("Cargo", func.cargo, 60, 3)
         println("  Regime atual: ${func.contratacao.rotulo}")
         val contratacao = escolherContratacao()
-        val salario = Entrada.decimal("Salario / bolsa / valor da nota", func.salario, BigDecimal("1.00"))
+        val salario = Entrada.decimalOuManter("Salario / bolsa / valor da nota", func.salario, BigDecimal("1.00"))
 
         setorDao.listar().forEach { println("   [${it.id}] ${it.nome}") }
         val setorId = Entrada.inteiro("Setor", func.setorId, 1, Int.MAX_VALUE)
@@ -236,8 +239,8 @@ object MenuCadastros {
         val ok = funcionarioDao.atualizar(
             func.copy(
                 nome = nome,
-                email = email ?: func.email,
-                telefone = telefone ?: func.telefone,
+                email = email,
+                telefone = telefone,
                 cargo = cargo,
                 salario = salario,
                 setorId = setorId,
@@ -356,18 +359,18 @@ object MenuCadastros {
             ?: throw RegraDeNegocioException("Cliente nao encontrado.")
 
         val nome = Entrada.razaoSocial("Nome", cliente.nome)
-        val email = Entrada.emailOpcional("E-mail")
-        val telefone = Entrada.telefoneOpcional("Telefone")
-        val endereco = Entrada.textoOpcional("Endereco", 150)
-        val cidade = Entrada.textoOpcional("Cidade", 60)
+        val email = Entrada.emailOuManter("E-mail", cliente.email)
+        val telefone = Entrada.telefoneOuManter("Telefone", cliente.telefone)
+        val endereco = Entrada.opcionalOuManter("Endereco", cliente.endereco, 150)
+        val cidade = Entrada.opcionalOuManter("Cidade", cliente.cidade, 60)
 
         val ok = clienteDao.atualizar(
             cliente.copy(
                 nome = nome,
-                email = email ?: cliente.email,
-                telefone = telefone ?: cliente.telefone,
-                endereco = endereco ?: cliente.endereco,
-                cidade = cidade ?: cliente.cidade
+                email = email,
+                telefone = telefone,
+                endereco = endereco,
+                cidade = cidade
             )
         )
         println(if (ok) "\n  Cadastro atualizado." else "\n  Nada foi alterado, confere o codigo.")
@@ -452,14 +455,14 @@ object MenuCadastros {
             ?: throw RegraDeNegocioException("Fornecedor nao encontrado.")
 
         val razao = Entrada.razaoSocial("Razao social", fornecedor.razaoSocial)
-        val email = Entrada.emailOpcional("E-mail")
-        val telefone = Entrada.telefoneOpcional("Telefone")
+        val email = Entrada.emailOuManter("E-mail", fornecedor.email)
+        val telefone = Entrada.telefoneOuManter("Telefone", fornecedor.telefone)
 
         val ok = fornecedorDao.atualizar(
             fornecedor.copy(
                 razaoSocial = razao,
-                email = email ?: fornecedor.email,
-                telefone = telefone ?: fornecedor.telefone
+                email = email,
+                telefone = telefone
             )
         )
         println(if (ok) "\n  Cadastro atualizado." else "\n  Nada foi alterado, confere o codigo.")

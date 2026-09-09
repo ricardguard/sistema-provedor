@@ -29,7 +29,7 @@ object MenuEstoque {
             println("  3 - Alterar produto")
             println("  4 - Comprar do fornecedor")
             println("  5 - Vender produto pro cliente")
-            println("  6 - Produtos abaixo do minimo")
+            println("  6 - Produtos no limite ou abaixo do minimo")
             println("  7 - Ajuste de inventario")
             println("  8 - Ultimas compras")
             println("  9 - Ultimas vendas")
@@ -110,8 +110,8 @@ object MenuEstoque {
         val descricao = Entrada.texto("Descricao", produto.descricao, 120, 3)
         val unidade = Entrada.texto("Unidade", produto.unidade, 10).uppercase()
         val minimo = Entrada.inteiro("Estoque minimo", produto.estoqueMinimo, 0, Int.MAX_VALUE)
-        val custo = Entrada.decimal("Preco de custo", produto.precoCusto)
-        val venda = Entrada.decimal("Preco de venda", produto.precoVenda)
+        val custo = Entrada.decimalOuManter("Preco de custo", produto.precoCusto)
+        val venda = Entrada.decimalOuManter("Preco de venda", produto.precoVenda)
 
         // Da pra trocar o fornecedor aqui: antes so dava pra definir no cadastro,
         // entao produto criado antes do fornecedor ficava orfao pra sempre.
@@ -120,8 +120,12 @@ object MenuEstoque {
         if (fornecedores.isNotEmpty()) {
             println("\n  Fornecedores:")
             fornecedores.forEach { println("   [${it.id}] ${it.razaoSocial}") }
-            val atual = produto.fornecedorId?.toString() ?: "nenhum"
-            val escolha = Entrada.inteiro("Fornecedor [$atual] (0 = nenhum): ", 0)
+            // Enter mantem o vinculo atual, 0 desvincula. Antes o unico
+            // caminho era digitar um numero, e quem digitava 0 achando que
+            // "nao ia mexer" acabava apagando o fornecedor do produto.
+            val escolha = Entrada.inteiro(
+                "Fornecedor (0 desvincula)", produto.fornecedorId ?: 0, 0, Int.MAX_VALUE
+            )
             fornecedorId = if (escolha == 0) {
                 null
             } else {
